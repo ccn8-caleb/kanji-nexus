@@ -887,30 +887,30 @@
     </div>
 
     <div class="toolbar-scroll">
-      <button type="button" id="btn-open-add-primary" class="tb-btn primary" data-tip-ja="新しい親漢字を追加" data-tip-en="Add Primary Kanji">＋ 漢字</button>
-      <button type="button" id="btn-open-add-secondary" class="tb-btn secondary" data-tip-ja="新しい熟語を追加" data-tip-en="Add Compound">＋ 熟語</button>
+      <button type="button" id="btn-open-add-primary" class="tb-btn primary" data-ja="＋ 漢字" data-en="＋ Kanji" data-tip-ja="新しい親漢字を追加" data-tip-en="Add Primary Kanji">＋ 漢字</button>
+      <button type="button" id="btn-open-add-secondary" class="tb-btn secondary" data-ja="＋ 熟語" data-en="＋ Compound" data-tip-ja="新しい熟語を追加" data-tip-en="Add Compound">＋ 熟語</button>
 
       <div class="tb-divider"></div>
 
-      <button type="button" id="btn-toggle-reveal" class="tb-btn" data-tip-ja="集中表示と全体表示を切替" data-tip-en="Toggle Focus Mode / Reveal All">集中表示</button>
-      <button type="button" id="btn-toggle-readings" class="tb-btn active" data-tip-ja="読み仮名の表示/非表示" data-tip-en="Show / Hide Readings">読み表示</button>
-      <button type="button" id="btn-toggle-link-mode" class="tb-btn" data-tip-ja="熟語同士の関連リンクを作成" data-tip-en="Interactive Compound Link Mode">リンク接続</button>
-      <button type="button" id="btn-auto-arrange" class="tb-btn" data-tip-ja="クラスター別に自動整列" data-tip-en="Auto-Arrange Clusters">自動整列</button>
+      <button type="button" id="btn-toggle-reveal" class="tb-btn" data-ja="集中表示" data-en="Focus Mode" data-tip-ja="集中表示と全体表示を切替" data-tip-en="Toggle Focus Mode / Reveal All">集中表示</button>
+      <button type="button" id="btn-toggle-readings" class="tb-btn active" data-ja="読み表示" data-en="Readings On" data-tip-ja="読み仮名の表示/非表示" data-tip-en="Show / Hide Readings">読み表示</button>
+      <button type="button" id="btn-toggle-link-mode" class="tb-btn" data-ja="リンク接続" data-en="Link Mode" data-tip-ja="熟語同士の関連リンクを作成" data-tip-en="Interactive Compound Link Mode">リンク接続</button>
+      <button type="button" id="btn-auto-arrange" class="tb-btn" data-ja="自動整列" data-en="Auto-Arrange" data-tip-ja="クラスター別に自動整列" data-tip-en="Auto-Arrange Clusters">自動整列</button>
 
       <div class="tb-divider"></div>
 
-      <button type="button" id="btn-toggle-autolink" class="tb-btn active" data-tip-ja="構成漢字の自動リンク" data-tip-en="Auto-Link Constituent Kanji">自動リンク</button>
-      <button type="button" id="btn-toggle-autocreate" class="tb-btn active" data-tip-ja="未登録の親漢字を自動作成" data-tip-en="Auto-Create Missing Kanji">未登録漢字自動作成</button>
+      <button type="button" id="btn-toggle-autolink" class="tb-btn active" data-ja="自動リンク" data-en="Auto-Link" data-tip-ja="構成漢字の自動リンク" data-tip-en="Auto-Link Constituent Kanji">自動リンク</button>
+      <button type="button" id="btn-toggle-autocreate" class="tb-btn active" data-ja="未登録漢字自動作成" data-en="Auto-Create Kanji" data-tip-ja="未登録の親漢字を自動作成" data-tip-en="Auto-Create Missing Kanji">未登録漢字自動作成</button>
 
       <div class="tb-divider"></div>
 
-      <button type="button" id="btn-undo" class="tb-btn" disabled data-tip-ja="操作を元に戻す (Ctrl+Z)" data-tip-en="Undo (Ctrl+Z)">↩ 戻す</button>
-      <button type="button" id="btn-redo" class="tb-btn" disabled data-tip-ja="操作をやり直す (Ctrl+Y)" data-tip-en="Redo (Ctrl+Y)">↪ やり直す</button>
+      <button type="button" id="btn-undo" class="tb-btn" disabled data-ja="↩ 戻す" data-en="↩ Undo" data-tip-ja="操作を元に戻す (Ctrl+Z)" data-tip-en="Undo (Ctrl+Z)">↩ 戻す</button>
+      <button type="button" id="btn-redo" class="tb-btn" disabled data-ja="↪ やり直す" data-en="↪ Redo" data-tip-ja="操作をやり直す (Ctrl+Y)" data-tip-en="Redo (Ctrl+Y)">↪ やり直す</button>
 
       <div class="tb-divider"></div>
 
-      <input type="search" id="map-search-input" placeholder="漢字・読み検索..." data-tip-ja="漢字・熟語・読みで検索" data-tip-en="Search Kanji / Reading">
-      <button type="button" id="btn-open-json" class="tb-btn" data-tip-ja="JSONデータの確認・入出力" data-tip-en="JSON Import / Export">JSON入出力</button>
+      <input type="search" id="map-search-input" placeholder="漢字・読み検索..." data-placeholder-ja="漢字・読み検索..." data-placeholder-en="Search kanji / reading..." data-tip-ja="漢字・熟語・読みで検索" data-tip-en="Search Kanji / Reading">
+      <button type="button" id="btn-open-json" class="tb-btn" data-ja="JSON入出力" data-en="JSON I/O" data-tip-ja="JSONデータの確認・入出力" data-tip-en="JSON Import / Export">JSON入出力</button>
 
       <div class="lang-switch" data-tip-ja="表示言語切替" data-tip-en="Switch Interface Language">
         <button type="button" id="lang-ja-btn" class="active">日本語</button>
@@ -3121,6 +3121,31 @@
           window.NexusHub.refreshUI();
         }
         renderAll();
+
+        document.querySelectorAll('.toolbar-scroll [data-ja]').forEach((el) => {
+          el.textContent = state.lang === 'en' ? el.dataset.en : el.dataset.ja;
+        });
+
+        const revealBtn = document.getElementById('btn-toggle-reveal');
+        if (revealBtn) {
+          revealBtn.textContent = state.revealAll
+            ? (state.lang === 'en' ? 'Reveal All' : '全体表示')
+            : (state.lang === 'en' ? 'Focus Mode' : '集中表示');
+        }
+
+        const readingsBtn = document.getElementById('btn-toggle-readings');
+        if (readingsBtn) {
+          readingsBtn.textContent = state.showReadings
+            ? (state.lang === 'en' ? 'Readings On' : '読み表示')
+            : (state.lang === 'en' ? 'Readings Off' : '読み非表示');
+        }
+
+        const mapSearch = document.getElementById('map-search-input');
+        if (mapSearch) {
+          mapSearch.placeholder = state.lang === 'en'
+            ? mapSearch.dataset.placeholderEn
+            : mapSearch.dataset.placeholderJa;
+        }
       }
 
       document.getElementById('lang-ja-btn').addEventListener('click', () => setLanguage('ja'));
