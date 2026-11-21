@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>統計・五十音索引 | Kanji Nexus Stats & Index</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230f172a'/%3E%3Cpath d='M27 33 L48 17 M27 36 L49 47' stroke='%2364748b' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='48' cy='17' r='7' fill='%233b82f6' stroke='%230f172a' stroke-width='2'/%3E%3Ccircle cx='49' cy='47' r='6.5' fill='%2310b981' stroke='%230f172a' stroke-width='2'/%3E%3Ctext x='23' y='45' text-anchor='middle' font-family='sans-serif' font-weight='900' font-size='34' fill='%23f8fafc'%3E%E6%BC%A2%3C/text%3E%3C/svg%3E">
+  <!-- Shared Hotbar Loader & Cross-App Data Bridge -->
+  <script src="nexus-hub.js"></script>
+  <style>
+    :root {
+      --bg-page: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-elevated: #f1f5f9;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --accent-primary: #2563eb;
+      --accent-secondary: #10b981;
+      --accent-purple: #8b5cf6;
+      --accent-amber: #f59e0b;
+      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.07);
+      --shadow-md: 0 6px 18px rgba(15, 23, 42, 0.1);
+    }
+
+    [data-theme="dark"] {
+      --bg-page: #0b1120;
+      --bg-surface: #0f172a;
+      --bg-elevated: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+      --accent-primary: #3b82f6;
+      --accent-secondary: #10b981;
+      --accent-purple: #a78bfa;
+      --accent-amber: #fbbf24;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+      --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.5;
+      min-height: 100vh;
+      padding-top: 56px;
+    }
+
+    /* ================= TOP BAR ================= */
+    #top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      gap: 10px;
+      z-index: 1000;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .brand-badge {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brand-badge img {
+      width: 24px;
+      height: 24px;
+      display: block;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .tb-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-surface);
+      color: var(--text-main);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .tb-btn:hover {
+      background: var(--bg-elevated);
+    }
+
+    .lang-switch {
+      display: inline-flex;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .lang-switch button {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 8px;
+      cursor: pointer;
+    }
+    .lang-switch button.active {
+      background: var(--accent-primary);
+      color: #ffffff;
+    }
+
+    /* ================= LAYOUT CONTAINER ================= */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 16px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ================= KPI CARDS ================= */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    @media (max-width: 840px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .kpi-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .kpi-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* ================= ANALYTICS PANELS ================= */
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 900px) {
+      .analytics-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .panel-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .hub-bar-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .hub-bar-row {
+      display: grid;
+      grid-template-columns: 38px 1fr 44px;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 6px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .hub-bar-row:hover {
+      background: var(--bg-elevated);
+    }
+
+    .hub-kanji-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 2px solid var(--accent-primary);
+      background: var(--bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    .hub-track {
+      height: 10px;
+      border-radius: 999px;
+      background: var(--bg-elevated);
+      overflow: hidden;
+    }
+
+    .hub-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--accent-primary);
+      transition: width 0.25s ease;
+    }
+
+    .hub-count {
+      font-size: 12px;
+      font-weight: 700;
+      text-align: right;
+      color: var(--text-muted);
+    }
+
+    .dist-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .dist-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .dist-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-elevated);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.12s;
+    }
+    .dist-chip:hover {
+      border-color: var(--accent-primary);
+      transform: translateY(-1px);
+    }
+    .dist-chip.active {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: #ffffff;
+    }
+
+    /* ================= INDEX CONTROLS ================= */
+    .index-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    .controls-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .mode-tabs {
+      display: inline-flex;
+      background: var(--bg-elevated);
+      padding: 3px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      gap: 2px;
+      flex-wrap: wrap;
+    }
+
+    .mode-tab {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 5px 11px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .mode-tab.active {
+      background: var(--bg-surface);
+      color: var(--text-main);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .search-box {
+      position: relative;
+      min-width: 230px;
+      flex: 1;
+      max-width: 340px;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 7px 12px;
+      border-radius: 9px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      font-size: 13px;
+      outline: none;
+    }
+    .search-box input:focus {
+      border-color: var(--accent-primary);
+      background: var(--bg-surface);
+    }
+
+    .kana-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .kana-btn {
+      padding: 4px 9px;
+      border-radius: 7px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .kana-btn:hover {
+      color: var(--text-main);
+    }
+    .kana-btn.active {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: #ffffff;
+    }
+
+    /* ================= INDEX GRID & CARDS ================= */
+    .index-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
+      gap: 12px;
+    }
+
+    .entry-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 11px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+    }
+    .entry-card:hover {
+      border-color: var(--accent-primary);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+
+    .entry-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .entry-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .kanji-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 2.5px solid #3b82f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 21px;
+      font-weight: 800;
+      flex-shrink: 0;
+      background: var(--bg-surface);
+    }
+
+    .compound-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 6px;
+    }
+
+    .entry-title {
+      font-size: 17px;
+      font-weight: 800;
+      line-height: 1.25;
+    }
+
+    .entry-reading {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .jump-pill {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-primary);
+      background: rgba(37, 99, 235, 0.1);
+      padding: 3px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .mini-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .mini-chip {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+    .mini-chip.kanji-ref {
+      border-color: rgba(37, 99, 235, 0.45);
+      color: var(--accent-primary);
+      font-weight: 700;
+    }
+    .mini-chip.tag-badge {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.35);
+      color: var(--accent-secondary);
+    }
+
+    .entry-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-elevated);
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    /* Cluster Cards */
+    .cluster-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .cluster-group-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .cluster-card {
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px;
+      background: var(--bg-elevated);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .cluster-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cluster-node-btn {
+      border: 1px solid var(--border-color);
+      background: var(--bg-surface);
+      color: var(--text-main);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: border-color 0.15s, transform 0.1s;
+    }
+    .cluster-node-btn:hover {
+      border-color: var(--accent-primary);
+      transform: translateY(-1px);
+    }
+    .cluster-node-btn.primary {
+      border-width: 2px;
+      border-color: var(--accent-primary);
+    }
+
+    #bilingual-tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.94);
+      color: #f8fafc;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 9px;
+      border-radius: 6px;
+      box-shadow: var(--shadow-md);
+      z-index: 5000;
+      opacity: 0;
+      transition: opacity 0.12s;
+      max-width: 260px;
+      white-space: nowrap;
+    }
+    #bilingual-tooltip.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP HEADER -->
+  <header id="top-bar">
+    <div class="brand-group">
+      <div class="brand-badge">
+        <img id="brand-icon-img" alt="統計・索引">
+      </div>
+      <span class="brand-title" data-tip-ja="統計ダッシュボードと五十音索引" data-tip-en="Statistics Dashboard & Kana Index">統計・索引</span>
+      <!-- Shared Hotbar Mount Point (populated automatically by nexus-hub.js) -->
+      <div id="nexus-hub-slot"></div>
+    </div>
+
+    <div class="header-actions">
+      <label class="tb-btn" style="cursor: pointer;" data-tip-ja="JSONバックアップを読込" data-tip-en="Import JSON Backup">
+        ⬆ JSON
+        <input type="file" id="stats-import-json" accept=".json,application/json" style="display: none;">
+      </label>
+
+      <div class="lang-switch" data-tip-ja="表示言語切替" data-tip-en="Switch Language">
+        <button type="button" id="lang-ja-btn" class="active">日本語</button>
+        <button type="button" id="lang-en-btn">EN</button>
+      </div>
+
+      <button type="button" id="btn-toggle-theme" class="tb-btn" data-tip-ja="テーマ切替" data-tip-en="Toggle Theme">🌓</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- KPI SUMMARY -->
+    <section class="kpi-grid" id="kpi-grid"></section>
+
+    <!-- ANALYTICS CHARTS -->
+    <section class="analytics-grid">
+      <div class="panel-card">
+        <div class="panel-header">
+          <h2 class="panel-title" id="title-top-hubs">接続数の多い親漢字 (Top Kanji Hubs)</h2>
+          <span class="panel-hint" id="hint-top-hubs">クリックでマップを表示</span>
+        </div>
+        <div class="hub-bar-list" id="top-hubs-list"></div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-header">
+          <h2 class="panel-title" id="title-breakdown">品詞タグ・関連リンク内訳</h2>
+          <span class="panel-hint" id="hint-breakdown">クリックで索引を絞り込み</span>
+        </div>
+        <div class="dist-section">
+          <div class="kpi-label" id="sub-grammar-tags">品詞・用法タグ</div>
+          <div class="dist-chips" id="grammar-dist-chips"></div>
+        </div>
+        <div class="dist-section" style="margin-top: 6px;">
+          <div class="kpi-label" id="sub-lateral-links">熟語間リンク種類</div>
+          <div class="dist-chips" id="linktype-dist-chips"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEARCHABLE GOJUON & CLUSTER INDEX -->
+    <section class="panel-card">
+      <div class="index-controls">
+        <div class="controls-top-row">
+          <div class="mode-tabs" id="view-mode-tabs">
+            <button type="button" class="mode-tab active" data-view-mode="all">すべて</button>
+            <button type="button" class="mode-tab" data-view-mode="primary">親漢字</button>
+            <button type="button" class="mode-tab" data-view-mode="secondary">熟語・語彙</button>
+            <button type="button" class="mode-tab" data-view-mode="clusters">クラスター別</button>
+          </div>
+
+          <div class="search-box">
+            <input type="search" id="index-search-input" placeholder="漢字・読み・メモで検索...">
+          </div>
+        </div>
+
+        <div class="kana-bar" id="kana-row-bar"></div>
+      </div>
+
+      <div id="index-results-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="panel-hint" id="index-count-label">0 件</span>
+        <button type="button" id="btn-clear-filters" class="tb-btn" style="padding: 3px 9px; font-size: 11px; display: none;">フィルタ解除</button>
+      </div>
+
+      <div id="index-content-area"></div>
+    </section>
+  </main>
+
+  <div id="bilingual-tooltip"></div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const brandImg = document.getElementById('brand-icon-img');
+      if (brandImg) {
+        brandImg.src = document.querySelector('link[rel~="icon"]')?.href || '';
+      }
+
+      const GRAMMAR_TAGS = [
+        { id: 'suru', ja: 'する動', en: 'Suru-verb' },
+        { id: 'intransitive', ja: '自動', en: 'Intransitive' },
+        { id: 'transitive', ja: '他動', en: 'Transitive' },
+        { id: 'na-adj', ja: 'な形', en: 'Na-adj' },
+        { id: 'i-adj', ja: 'い形', en: 'I-adj' },
+        { id: 'adverb', ja: '副', en: 'Adverb' },
+        { id: 'kana', ja: 'かな表記', en: 'Usually Kana' }
+      ];
+
+      const LINK_TYPES = {
+        related:    { ja: '関連語', en: 'Related',    short: '関', color: '#64748b' },
+        antonym:    { ja: '対義語', en: 'Antonym',    short: '対', color: '#f43f5e' },
+        synonym:    { ja: '類義語', en: 'Synonym',    short: '類', color: '#0ea5e9' },
+        derivative: { ja: '派生語', en: 'Derivative', short: '派', color: '#10b981' },
+        lookalike:  { ja: '類形語', en: 'Lookalike',  short: '似', color: '#f59e0b' }
+      };
+
+      const KANA_ROWS = [
+        { id: 'all', label: '全', chars: '' },
+        { id: 'a',   label: 'あ', chars: 'あいうえおぁぃぅぇぉ' },
+        { id: 'ka',  label: 'か', chars: 'かきくけこがぎぐげご' },
+        { id: 'sa',  label: 'さ', chars: 'さしすせそざじずぜぞ' },
+        { id: 'ta',  label: 'た', chars: 'たちつてとだぢづでどっ' },
+        { id: 'na',  label: 'な', chars: 'なにぬねの' },
+        { id: 'ha',  label: 'は', chars: 'はひふへほばびぶべぼぱぴぷぺぽ' },
+        { id: 'ma',  label: 'ま', chars: 'まみむめも' },
+        { id: 'ya',  label: 'や', chars: 'やゆよゃゅょ' },
+        { id: 'ra',  label: 'ら', chars: 'らりるれろ' },
+        { id: 'wa',  label: 'わ', chars: 'わをんゎ' }
+      ];
+
+      const state = {
+        data: { primaryNodes: [] },
+        viewMode: 'all',     // 'all' | 'primary' | 'secondary' | 'clusters'
+        kanaRow: 'all',
+        tagFilter: 'all',
+        searchQuery: '',
+        lang: 'ja',
+        theme: 'light'
+      };
+
+      function escapeHtml(str) {
+        return String(str ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function toHiragana(str) {
+        return String(str || '').replace(/[\u30a1-\u30f6]/g, (ch) =>
+          String.fromCharCode(ch.charCodeAt(0) - 0x60)
+        );
+      }
+
+      function getKanaRowForReading(readingStr) {
+        const hira = toHiragana(String(readingStr || '').trim());
+        if (!hira) return 'other';
+        const first = hira[0];
+        for (const row of KANA_ROWS) {
+          if (row.id !== 'all' && row.chars.includes(first)) {
+            return row.id;
+          }
+        }
+        return 'other';
+      }
+
+      function jumpToMapNode(nodeId) {
+        if (!nodeId) return;
+        if (window.NexusHub && typeof window.NexusHub.openInMap === 'function') {
+          window.NexusHub.openInMap(nodeId);
+        } else {
+          window.location.href = `kanji_nexus.html?focus=${encodeURIComponent(nodeId)}`;
+        }
+      }
+
+      function buildGraphModel() {
+        const primaries = Array.isArray(state.data?.primaryNodes) ? state.data.primaryNodes : [];
+        const pById = new Map();
+        const sById = new Map();
+        const sParents = new Map();
+
+        for (const p of primaries) {
+          pById.set(p.id, p);
+          for (const c of p.connections || []) {
+            if (c && c.id) {
+              sById.set(c.id, c);
+              if (!sParents.has(c.id)) sParents.set(c.id, []);
+              if (!sParents.get(c.id).includes(p.id)) sParents.get(c.id).push(p.id);
+            } else if (c && c.refId) {
+              if (!sParents.has(c.refId)) sParents.set(c.refId, []);
+              if (!sParents.get(c.refId).includes(p.id)) sParents.get(c.refId).push(p.id);
+            }
+          }
+        }
+
+        // Connected components
+        const adj = new Map();
+        for (const p of primaries) adj.set(p.id, new Set());
+        for (const [sid, pids] of sParents.entries()) {
+          if (!sById.has(sid)) continue;
+          for (const pid of pids) {
+            adj.get(pid)?.add(sid);
+            if (!adj.has(sid)) adj.set(sid, new Set());
+            adj.get(sid).add(pid);
+          }
+        }
+
+        const visited = new Set();
+        const clusters = [];
+        for (const p of primaries) {
+          if (visited.has(p.id)) continue;
+          const compP = [];
+          const compS = [];
+          const stack = [p.id];
+          visited.add(p.id);
+          while (stack.length) {
+            const curr = stack.pop();
+            if (pById.has(curr)) compP.push(pById.get(curr));
+            else if (sById.has(curr)) compS.push(sById.get(curr));
+            for (const nxt of adj.get(curr) || []) {
+              if (!visited.has(nxt)) {
+                visited.add(nxt);
+                stack.push(nxt);
+              }
+            }
+          }
+          clusters.push({ primaries: compP, secondaries: compS });
+        }
+        clusters.sort((a, b) => b.primaries.length - a.primaries.length || b.secondaries.length - a.secondaries.length);
+
+        return { primaries, pById, sById, sParents, clusters };
+      }
+
+      // =====================================================================
+      // RENDERING
+      // =====================================================================
+      function renderKpis(model) {
+        const { primaries, sById, clusters } = model;
+        const pTotal = primaries.length;
+        const pWithReading = primaries.filter((p) => p.onyomi || p.kunyomi).length;
+        const sTotal = sById.size;
+        const avgPerKanji = pTotal ? (sTotal / pTotal).toFixed(1) : '0.0';
+
+        let lateralEdges = 0;
+        for (const s of sById.values()) {
+          lateralEdges += Array.isArray(s.linksTo) ? s.linksTo.length : 0;
+        }
+        lateralEdges = Math.floor(lateralEdges / 2);
+
+        const multiClusters = clusters.filter((c) => c.primaries.length >= 2).length;
+        const isEn = state.lang === 'en';
+
+        document.getElementById('kpi-grid').innerHTML = `
+          <div class="kpi-card">
+            <span class="kpi-label">${isEn ? 'Primary Kanji' : '親漢字数'}</span>
+            <span class="kpi-value" style="color: var(--accent-primary);">${pTotal}</span>
+            <span class="kpi-sub">${isEn ? `${pWithReading} with readings saved` : `読み登録済: ${pWithReading} 字`}</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">${isEn ? 'Compounds & Vocab' : '熟語・語彙数'}</span>
+            <span class="kpi-value" style="color: var(--accent-secondary);">${sTotal}</span>
+            <span class="kpi-sub">${isEn ? `${avgPerKanji} compounds / kanji` : `平均 ${avgPerKanji} 語 / 漢字`}</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">${isEn ? 'Connected Clusters' : 'クラスター数'}</span>
+            <span class="kpi-value" style="color: var(--accent-purple);">${clusters.length}</span>
+            <span class="kpi-sub">${isEn ? `${multiClusters} multi-kanji networks` : `多漢字ネットワーク: ${multiClusters} 群`}</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-label">${isEn ? 'Lateral Word Links' : '熟語間リンク数'}</span>
+            <span class="kpi-value" style="color: var(--accent-amber);">${lateralEdges}</span>
+            <span class="kpi-sub">${isEn ? 'Antonyms, synonyms & derivatives' : '対義語・類義語・派生語'}</span>
+          </div>
+        `;
+      }
+
+      function renderAnalytics(model) {
+        const { primaries, sById } = model;
+        const isEn = state.lang === 'en';
+
+        // Top Kanji Hubs
+        const ranked = primaries
+          .map((p) => {
+            const count = (p.connections || []).filter((c) => sById.has(c.id || c.refId)).length;
+            return { p, count };
+          })
+          .filter((item) => item.count > 0)
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 7);
+
+        const maxCount = ranked[0]?.count || 1;
+        const hubsWrap = document.getElementById('top-hubs-list');
+        if (!ranked.length) {
+          hubsWrap.innerHTML = `<div class="panel-hint">${isEn ? 'No data yet.' : 'データがありません'}</div>`;
+        } else {
+          hubsWrap.innerHTML = ranked
+            .map(({ p, count }) => {
+              const pct = Math.max(8, Math.round((count / maxCount) * 100));
+              return `
+                <div class="hub-bar-row" data-jump-id="${p.id}">
+                  <div class="hub-kanji-badge" style="border-color: ${p.color || '#3b82f6'};">${escapeHtml(p.label)}</div>
+                  <div class="hub-track">
+                    <div class="hub-fill" style="width: ${pct}%; background: ${p.color || '#3b82f6'};"></div>
+                  </div>
+                  <div class="hub-count">${count}${isEn ? '' : '語'}</div>
+                </div>
+              `;
+            })
+            .join('');
+        }
+
+        // Grammar Tag Counts
+        const tagCounts = new Map();
+        for (const t of GRAMMAR_TAGS) tagCounts.set(t.id, 0);
+        for (const s of sById.values()) {
+          for (const tid of s.tags || []) {
+            if (tagCounts.has(tid)) tagCounts.set(tid, tagCounts.get(tid) + 1);
+          }
+        }
+
+        document.getElementById('grammar-dist-chips').innerHTML = GRAMMAR_TAGS.map((t) => {
+          const cnt = tagCounts.get(t.id) || 0;
+          const active = state.tagFilter === t.id;
+          return `<button type="button" class="dist-chip ${active ? 'active' : ''}" data-filter-tag="${t.id}">${isEn ? t.en : t.ja} <strong>${cnt}</strong></button>`;
+        }).join('');
+
+        // Link Type Counts
+        const linkCounts = new Map();
+        for (const k of Object.keys(LINK_TYPES)) linkCounts.set(k, 0);
+        const countedPairs = new Set();
+        for (const s of sById.values()) {
+          for (const l of s.linksTo || []) {
+            const tid = typeof l === 'string' ? l : l.targetId;
+            const ltype = typeof l === 'object' && l.type ? l.type : 'related';
+            const pairKey = [s.id, tid].sort().join('::');
+            if (!countedPairs.has(pairKey)) {
+              countedPairs.add(pairKey);
+              linkCounts.set(ltype, (linkCounts.get(ltype) || 0) + 1);
+            }
+          }
+        }
+
+        document.getElementById('linktype-dist-chips').innerHTML = Object.entries(LINK_TYPES)
+          .map(([k, meta]) => {
+            const cnt = linkCounts.get(k) || 0;
+            return `<span class="dist-chip" style="cursor: default;"><span style="width: 8px; height: 8px; border-radius: 50%; background: ${meta.color};"></span>${isEn ? meta.en : meta.ja} <strong>${cnt}</strong></span>`;
+          })
+          .join('');
+
+        // Bind clicks
+        hubsWrap.querySelectorAll('[data-jump-id]').forEach((el) => {
+          el.addEventListener('click', () => jumpToMapNode(el.dataset.jumpId));
+        });
+        document.querySelectorAll('[data-filter-tag]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const tid = btn.dataset.filterTag;
+            state.tagFilter = state.tagFilter === tid ? 'all' : tid;
+            if (state.tagFilter !== 'all' && state.viewMode === 'primary') {
+              state.viewMode = 'secondary';
+            }
+            renderAll();
+          });
+        });
+      }
+
+      function renderKanaBar() {
+        const bar = document.getElementById('kana-row-bar');
+        bar.innerHTML = KANA_ROWS.map(
+          (r) =>
+            `<button type="button" class="kana-btn ${state.kanaRow === r.id ? 'active' : ''}" data-kana-row="${r.id}">${r.label}</button>`
+        ).join('');
+        bar.querySelectorAll('[data-kana-row]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.kanaRow = btn.dataset.kanaRow;
+            renderIndex();
+            renderKanaBar();
+          });
+        });
+      }
+
+      function renderIndex(model = buildGraphModel()) {
+        const { primaries, pById, sById, sParents, clusters } = model;
+        const isEn = state.lang === 'en';
+        const q = toHiragana(state.searchQuery.trim().toLowerCase());
+        const hasFilters = q !== '' || state.kanaRow !== 'all' || state.tagFilter !== 'all';
+
+        const clearBtn = document.getElementById('btn-clear-filters');
+        clearBtn.style.display = hasFilters ? 'inline-flex' : 'none';
+        clearBtn.textContent = isEn ? 'Reset Filters' : 'フィルタ解除';
+
+        // Update view mode tabs
+        document.querySelectorAll('[data-view-mode]').forEach((tab) => {
+          tab.classList.toggle('active', tab.dataset.viewMode === state.viewMode);
+          const m = tab.dataset.viewMode;
+          if (m === 'all') tab.textContent = isEn ? 'All' : 'すべて';
+          if (m === 'primary') tab.textContent = isEn ? 'Primary Kanji' : '親漢字';
+          if (m === 'secondary') tab.textContent = isEn ? 'Compounds' : '熟語・語彙';
+          if (m === 'clusters') tab.textContent = isEn ? 'Clusters' : 'クラスター別';
+        });
+
+        const area = document.getElementById('index-content-area');
+
+        // Cluster View
+        if (state.viewMode === 'clusters') {
+          const multi = clusters.filter((c) => c.primaries.length >= 3);
+          const pairs = clusters.filter((c) => c.primaries.length === 2);
+          const singles = clusters.filter((c) => c.primaries.length <= 1);
+
+          const filterCluster = (c) => {
+            if (!q && state.tagFilter === 'all') return true;
+            const pMatch = c.primaries.some(
+              (p) =>
+                p.label.toLowerCase().includes(q) ||
+                toHiragana(p.onyomi).toLowerCase().includes(q) ||
+                toHiragana(p.kunyomi).toLowerCase().includes(q)
+            );
+            const sMatch = c.secondaries.some((s) => {
+              const tagOk = state.tagFilter === 'all' || (s.tags || []).includes(state.tagFilter);
+              const qOk =
+                !q ||
+                s.label.toLowerCase().includes(q) ||
+                toHiragana(s.reading).toLowerCase().includes(q);
+              return tagOk && qOk;
+            });
+            return (state.tagFilter === 'all' && pMatch) || sMatch;
+          };
+
+          const renderGroup = (title, list) => {
+            const filtered = list.filter(filterCluster);
+            if (!filtered.length) return '';
+            return `
+              <div>
+                <div class="cluster-group-title">${title} (${filtered.length})</div>
+                <div class="index-grid">
+                  ${filtered
+                    .map(
+                      (c) => `
+                    <div class="cluster-card">
+                      <div class="cluster-row">
+                        ${c.primaries
+                          .map(
+                            (p) =>
+                              `<button type="button" class="cluster-node-btn primary" style="border-color: ${p.color || '#3b82f6'};" data-jump-id="${p.id}">${escapeHtml(p.label)}</button>`
+                          )
+                          .join('')}
+                      </div>
+                      <div class="cluster-row">
+                        ${c.secondaries
+                          .map(
+                            (s) =>
+                              `<button type="button" class="cluster-node-btn" data-jump-id="${s.id}">${escapeHtml(s.label)} <span style="font-weight: 400; color: var(--text-muted);">${escapeHtml(s.reading)}</span></button>`
+                          )
+                          .join('')}
+                      </div>
+                    </div>
+                  `
+                    )
+                    .join('')}
+                </div>
+              </div>
+            `;
+          };
+
+          const totalShown = [multi, pairs, singles].reduce(
+            (acc, l) => acc + l.filter(filterCluster).length,
+            0
+          );
+          document.getElementById('index-count-label').textContent = isEn
+            ? `${totalShown} clusters`
+            : `${totalShown} クラスター`;
+
+          area.innerHTML = `<div class="cluster-section">
+            ${renderGroup(isEn ? 'Multi-Kanji Networks (3+ Kanji)' : '多漢字ネットワーク (3字以上)', multi)}
+            ${renderGroup(isEn ? '2-Kanji Pairs' : '2漢字ペア', pairs)}
+            ${renderGroup(isEn ? 'Single-Kanji Islands' : '単漢字アイランド', singles)}
+          </div>`;
+
+          area.querySelectorAll('[data-jump-id]').forEach((btn) => {
+            btn.addEventListener('click', () => jumpToMapNode(btn.dataset.jumpId));
+          });
+          return;
+        }
+
+        // Flat / Filtered Entry Cards (Primary + Secondary)
+        const cards = [];
+
+        if ((state.viewMode === 'all' || state.viewMode === 'primary') && state.tagFilter === 'all') {
+          const sortedP = [...primaries].sort((a, b) => {
+            const ra = toHiragana(a.onyomi || a.kunyomi || a.label);
+            const rb = toHiragana(b.onyomi || b.kunyomi || b.label);
+            return ra.localeCompare(rb, 'ja');
+          });
+
+          for (const p of sortedP) {
+            const readingSample = p.onyomi || p.kunyomi || '';
+            if (state.kanaRow !== 'all' && getKanaRowForReading(readingSample) !== state.kanaRow) {
+              continue;
+            }
+            if (q) {
+              const hay = `${p.label} ${toHiragana(p.onyomi)} ${toHiragana(p.kunyomi)} ${p.notes}`.toLowerCase();
+              if (!hay.includes(q)) continue;
+            }
+
+            const attached = (p.connections || [])
+              .map((c) => sById.get(c.id || c.refId))
+              .filter(Boolean);
+
+            cards.push(`
+              <article class="entry-card" data-jump-id="${p.id}">
+                <div class="entry-top">
+                  <div class="entry-main">
+                    <div class="kanji-avatar" style="border-color: ${p.color || '#3b82f6'};">${escapeHtml(p.label)}</div>
+                    <div>
+                      <div class="entry-title">${escapeHtml(p.label)} <span style="font-size: 11px; font-weight: 600; color: var(--text-muted);">(${attached.length})</span></div>
+                      <div class="entry-reading">${escapeHtml([p.onyomi, p.kunyomi].filter(Boolean).join(' / ') || (isEn ? 'No reading saved' : '読み未登録'))}</div>
+                    </div>
+                  </div>
+                  <span class="jump-pill">${isEn ? 'Map ↗' : 'マップ ↗'}</span>
+                </div>
+                ${
+                  attached.length
+                    ? `<div class="mini-chips">${attached
+                        .slice(0, 8)
+                        .map(
+                          (s) =>
+                            `<span class="mini-chip" data-jump-id="${s.id}">${escapeHtml(s.label)}</span>`
+                        )
+                        .join('')}</div>`
+                    : ''
+                }
+                ${p.notes ? `<div class="entry-note">${escapeHtml(p.notes)}</div>` : ''}
+              </article>
+            `);
+          }
+        }
+
+        if (state.viewMode === 'all' || state.viewMode === 'secondary') {
+          const sortedS = [...sById.values()].sort((a, b) =>
+            toHiragana(a.reading || a.label).localeCompare(toHiragana(b.reading || b.label), 'ja')
+          );
+
+          for (const s of sortedS) {
+            if (state.tagFilter !== 'all' && !(s.tags || []).includes(state.tagFilter)) {
+              continue;
+            }
+            if (state.kanaRow !== 'all' && getKanaRowForReading(s.reading) !== state.kanaRow) {
+              continue;
+            }
+            if (q) {
+              const hay = `${s.label} ${toHiragana(s.reading)} ${s.notes}`.toLowerCase();
+              if (!hay.includes(q)) continue;
+            }
+
+            const parentBadges = (sParents.get(s.id) || [])
+              .map((pid) => pById.get(pid))
+              .filter(Boolean)
+              .map(
+                (p) =>
+                  `<span class="mini-chip kanji-ref" data-jump-id="${p.id}">${escapeHtml(p.label)}</span>`
+              )
+              .join('');
+
+            const tagBadges = (s.tags || [])
+              .map((tid) => {
+                const meta = GRAMMAR_TAGS.find((t) => t.id === tid);
+                return meta
+                  ? `<span class="mini-chip tag-badge">${isEn ? meta.en : meta.ja}</span>`
+                  : '';
+              })
+              .join('');
+
+            const linkBadges = (s.linksTo || [])
+              .map((l) => {
+                const tid = typeof l === 'string' ? l : l.targetId;
+                const ltype = typeof l === 'object' && l.type ? l.type : 'related';
+                const target = sById.get(tid);
+                const meta = LINK_TYPES[ltype] || LINK_TYPES.related;
+                return target
+                  ? `<span class="mini-chip" data-jump-id="${target.id}" style="border-color: ${meta.color};">${meta.short}·${escapeHtml(target.label)}</span>`
+                  : '';
+              })
+              .join('');
+
+            cards.push(`
+              <article class="entry-card" data-jump-id="${s.id}">
+                <div class="entry-top">
+                  <div class="entry-main">
+                    <span class="compound-dot" style="background: ${s.color || '#10b981'};"></span>
+                    <div>
+                      <div class="entry-title">${escapeHtml(s.label)}</div>
+                      <div class="entry-reading">${escapeHtml(s.reading || '—')}</div>
+                    </div>
+                  </div>
+                  <span class="jump-pill">${isEn ? 'Map ↗' : 'マップ ↗'}</span>
+                </div>
+                <div class="mini-chips">${parentBadges}${tagBadges}${linkBadges}</div>
+                ${s.notes ? `<div class="entry-note">${escapeHtml(s.notes)}</div>` : ''}
+              </article>
+            `);
+          }
+        }
+
+        document.getElementById('index-count-label').textContent = isEn
+          ? `${cards.length} entries`
+          : `${cards.length} 件`;
+
+        area.innerHTML = cards.length
+          ? `<div class="index-grid">${cards.join('')}</div>`
+          : `<div class="panel-hint" style="padding: 16px 0;">${isEn ? 'No matching entries found.' : '一致する項目がありません。'}</div>`;
+
+        area.querySelectorAll('[data-jump-id]').forEach((el) => {
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            jumpToMapNode(el.dataset.jumpId);
+          });
+        });
+      }
+
+      function renderAll() {
+        const isEn = state.lang === 'en';
+        document.getElementById('title-top-hubs').textContent = isEn
+          ? 'Top Kanji Hubs by Compound Count'
+          : '接続数の多い親漢字';
+        document.getElementById('hint-top-hubs').textContent = isEn
+          ? 'Click any kanji to locate in Map'
+          : 'クリックでマップを表示';
+        document.getElementById('title-breakdown').textContent = isEn
+          ? 'Grammar Tags & Lateral Link Types'
+          : '品詞タグ・関連リンク内訳';
+        document.getElementById('hint-breakdown').textContent = isEn
+          ? 'Click tag to filter index'
+          : 'クリックで索引を絞り込み';
+        document.getElementById('sub-grammar-tags').textContent = isEn
+          ? 'Grammar & Usage Tags'
+          : '品詞・用法タグ';
+        document.getElementById('sub-lateral-links').textContent = isEn
+          ? 'Compound Link Types'
+          : '熟語間リンク種類';
+        document.getElementById('index-search-input').placeholder = isEn
+          ? 'Search kanji, reading, or notes...'
+          : '漢字・読み・メモで検索...';
+
+        const model = buildGraphModel();
+        renderKpis(model);
+        renderAnalytics(model);
+        renderKanaBar();
+        renderIndex(model);
+      }
+
+      // =====================================================================
+      // EVENTS, IME-SAFE SEARCH, THEME & LANGUAGE
+      // =====================================================================
+      document.querySelectorAll('[data-view-mode]').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          state.viewMode = tab.dataset.viewMode;
+          renderIndex();
+        });
+      });
+
+      document.getElementById('btn-clear-filters').addEventListener('click', () => {
+        state.searchQuery = '';
+        state.kanaRow = 'all';
+        state.tagFilter = 'all';
+        document.getElementById('index-search-input').value = '';
+        renderAll();
+      });
+
+      const searchInput = document.getElementById('index-search-input');
+      let composing = false;
+      searchInput.addEventListener('compositionstart', () => {
+        composing = true;
+      });
+      searchInput.addEventListener('compositionend', (e) => {
+        composing = false;
+        state.searchQuery = e.target.value;
+        renderIndex();
+      });
+      searchInput.addEventListener('input', (e) => {
+        if (composing || e.isComposing) return;
+        state.searchQuery = e.target.value;
+        renderIndex();
+      });
+
+      document.getElementById('stats-import-json').addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(String(reader.result));
+            if (parsed && Array.isArray(parsed.primaryNodes)) {
+              state.data = parsed;
+              if (window.NexusHub && typeof window.NexusHub.saveData === 'function') {
+                window.NexusHub.saveData(parsed);
+              }
+              renderAll();
+            }
+          } catch (err) {
+            alert('JSON parse error: ' + err.message);
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      });
+
+      function setLanguage(lang) {
+        state.lang = lang === 'en' ? 'en' : 'ja';
+        document.documentElement.setAttribute('data-lang', state.lang);
+        try {
+          localStorage.setItem('kanji_nexus_lang', state.lang);
+        } catch (_) {}
+        document.getElementById('lang-ja-btn').classList.toggle('active', state.lang === 'ja');
+        document.getElementById('lang-en-btn').classList.toggle('active', state.lang === 'en');
+        if (window.NexusHub && typeof window.NexusHub.refreshUI === 'function') {
+          window.NexusHub.refreshUI();
+        }
+        renderAll();
+      }
+
+      document.getElementById('lang-ja-btn').addEventListener('click', () => setLanguage('ja'));
+      document.getElementById('lang-en-btn').addEventListener('click', () => setLanguage('en'));
+
+      function setTheme(theme) {
+        state.theme = theme === 'dark' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', state.theme);
+        try {
+          localStorage.setItem('kanji_nexus_theme', state.theme);
+        } catch (_) {}
+        if (window.NexusHub && typeof window.NexusHub.refreshUI === 'function') {
+          window.NexusHub.refreshUI();
+        }
+      }
+
+      document.getElementById('btn-toggle-theme').addEventListener('click', () => {
+        setTheme(state.theme === 'dark' ? 'light' : 'dark');
+      });
+
+      // Bilingual Hover & Long-Press Tooltips
+      const elTooltip = document.getElementById('bilingual-tooltip');
+      let longPressTimer = null;
+      function showTooltipFor(target, clientX, clientY) {
+        const el = target?.closest('[data-tip-ja], [data-tip-en]');
+        if (!el) return;
+        const text = state.lang === 'en' ? el.dataset.tipJa : el.dataset.tipEn;
+        if (!text) return;
+        elTooltip.textContent = text;
+        elTooltip.classList.add('visible');
+        elTooltip.style.left = `${Math.min(window.innerWidth - 270, Math.max(8, clientX + 10))}px`;
+        elTooltip.style.top = `${Math.min(window.innerHeight - 36, Math.max(8, clientY + 14))}px`;
+      }
+      document.addEventListener('mouseover', (e) => showTooltipFor(e.target, e.clientX, e.clientY));
+      document.addEventListener('mouseout', (e) => {
+        if (e.target?.closest('[data-tip-ja], [data-tip-en]')) elTooltip.classList.remove('visible');
+      });
+      document.addEventListener(
+        'touchstart',
+        (e) => {
+          const t = e.touches[0];
+          if (!t) return;
+          longPressTimer = setTimeout(() => showTooltipFor(e.target, t.clientX, t.clientY), 420);
+        },
+        { passive: true }
+      );
+      document.addEventListener('touchend', () => {
+        clearTimeout(longPressTimer);
+        setTimeout(() => elTooltip.classList.remove('visible'), 900);
+      });
+
+      // Initialize from NexusHub
+      function init() {
+        try {
+          const savedTheme = localStorage.getItem('kanji_nexus_theme');
+          if (savedTheme === 'dark' || savedTheme === 'light') setTheme(savedTheme);
+          const savedLang = localStorage.getItem('kanji_nexus_lang');
+          if (savedLang === 'en' || savedLang === 'ja') setLanguage(savedLang);
+        } catch (_) {}
+
+        const loaded =
+          window.NexusHub && typeof window.NexusHub.getData === 'function'
+            ? window.NexusHub.getData()
+            : null;
+        if (loaded && Array.isArray(loaded.primaryNodes)) {
+          state.data = loaded;
+        }
+
+        if (window.NexusHub && typeof window.NexusHub.onDataChange === 'function') {
+          window.NexusHub.onDataChange((updated) => {
+            state.data = updated;
+            renderAll();
+          });
+        }
+
+        renderAll();
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>

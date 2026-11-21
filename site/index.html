@@ -1,0 +1,3265 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>漢字ネットワーク | Kanji Nexus</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230f172a'/%3E%3Cpath d='M27 33 L48 17 M27 36 L49 47' stroke='%2364748b' stroke-width='4' stroke-linecap='round'/%3E%3Ccircle cx='48' cy='17' r='7' fill='%233b82f6' stroke='%230f172a' stroke-width='2'/%3E%3Ccircle cx='49' cy='47' r='6.5' fill='%2310b981' stroke='%230f172a' stroke-width='2'/%3E%3Ctext x='23' y='45' text-anchor='middle' font-family='sans-serif' font-weight='900' font-size='34' fill='%23f8fafc'%3E%E6%BC%A2%3C/text%3E%3C/svg%3E">
+  <!-- Shared Hotbar Loader & Cross-App Data Bridge -->
+  <script src="nexus-hub.js"></script>
+  <style>
+    :root {
+      --bg-canvas: #f8fafc;
+      --grid-dot: #cbd5e1;
+      --bg-surface: #ffffff;
+      --bg-elevated: #f1f5f9;
+      --node-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --accent-primary: #2563eb;
+      --accent-secondary: #10b981;
+      --danger: #ef4444;
+      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
+      --shadow-md: 0 6px 18px rgba(15, 23, 42, 0.12);
+      --shadow-lg: 0 14px 34px rgba(15, 23, 42, 0.18);
+      --edge-solid: #94a3b8;
+    }
+
+    [data-theme="dark"] {
+      --bg-canvas: #0b1120;
+      --grid-dot: #1e293b;
+      --bg-surface: #0f172a;
+      --bg-elevated: #1e293b;
+      --node-bg: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+      --accent-primary: #3b82f6;
+      --accent-secondary: #10b981;
+      --danger: #f87171;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+      --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.45);
+      --shadow-lg: 0 14px 34px rgba(0, 0, 0, 0.6);
+      --edge-solid: #475569;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-canvas);
+      color: var(--text-main);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ================= HEADER & FILTER BAR ================= */
+    #top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 54px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      gap: 8px;
+      z-index: 1000;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .brand-badge {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      border-radius: 6px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+    }
+
+    .brand-badge img {
+      width: 24px;
+      height: 24px;
+      display: block;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .toolbar-scroll {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding: 2px 0;
+    }
+    .toolbar-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tb-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-surface);
+      color: var(--text-main);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+    }
+
+    .tb-btn:hover:not(:disabled) {
+      background: var(--bg-elevated);
+    }
+
+    .tb-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .tb-btn.primary {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: #ffffff;
+    }
+    .tb-btn.primary:hover:not(:disabled) {
+      filter: brightness(1.08);
+    }
+
+    .tb-btn.secondary {
+      background: var(--accent-secondary);
+      border-color: var(--accent-secondary);
+      color: #ffffff;
+    }
+    .tb-btn.secondary:hover:not(:disabled) {
+      filter: brightness(1.08);
+    }
+
+    .tb-btn.active {
+      background: rgba(37, 99, 235, 0.12);
+      border-color: var(--accent-primary);
+      color: var(--accent-primary);
+    }
+
+    .tb-btn.link-active {
+      background: #f59e0b;
+      border-color: #f59e0b;
+      color: #ffffff;
+    }
+
+    .tb-divider {
+      width: 1px;
+      height: 22px;
+      background: var(--border-color);
+      flex-shrink: 0;
+      margin: 0 2px;
+    }
+
+    #map-search-input {
+      width: 135px;
+      padding: 5px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s, width 0.2s;
+    }
+    #map-search-input:focus {
+      border-color: var(--accent-primary);
+      width: 165px;
+      background: var(--bg-surface);
+    }
+
+    .lang-switch {
+      display: inline-flex;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .lang-switch button {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 8px;
+      cursor: pointer;
+    }
+    .lang-switch button.active {
+      background: var(--accent-primary);
+      color: #ffffff;
+    }
+
+    /* Tag Filter Bar */
+    #tag-filter-bar {
+      position: fixed;
+      top: 54px;
+      left: 0;
+      right: 0;
+      height: 36px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      gap: 8px;
+      z-index: 950;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    #tag-filter-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .filter-pills {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .filter-pill {
+      padding: 3px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .filter-pill:hover {
+      color: var(--text-main);
+    }
+    .filter-pill.active {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+      color: #ffffff;
+    }
+
+    .map-stats-pill {
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      font-weight: 600;
+    }
+
+    /* ================= CANVAS & NODES ================= */
+    #canvas-container {
+      position: fixed;
+      top: 90px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      overflow: hidden;
+      touch-action: none;
+      cursor: grab;
+      background-image: radial-gradient(var(--grid-dot) 1.25px, transparent 1.25px);
+      background-size: 24px 24px;
+    }
+
+    #canvas-container.grabbing {
+      cursor: grabbing;
+    }
+
+    /* IMPORTANT: No will-change: transform or translate3d so vector text stays crisp on zoom */
+    #world {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 0;
+      height: 0;
+      transform-origin: 0 0;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+    }
+
+    #edges-svg {
+      position: absolute;
+      top: -10000px;
+      left: -10000px;
+      width: 20000px;
+      height: 20000px;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .edge-primary {
+      fill: none;
+      stroke: var(--edge-solid);
+      stroke-width: 2;
+      stroke-linecap: round;
+      transition: opacity 0.2s, stroke 0.2s, stroke-width 0.2s;
+    }
+
+    .edge-primary.highlighted {
+      stroke: var(--accent-primary);
+      stroke-width: 2.8;
+    }
+
+    .edge-lateral {
+      fill: none;
+      stroke-width: 2.2;
+      stroke-dasharray: 6 5;
+      stroke-linecap: round;
+      transition: opacity 0.2s, stroke-width 0.2s;
+    }
+
+    #nodes-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* Reverted Clean Circular Primary Kanji Node */
+    .node-primary {
+      position: absolute;
+      width: 64px;
+      height: 64px;
+      margin-left: -32px;
+      margin-top: -32px;
+      border-radius: 50%;
+      background: var(--node-bg);
+      border: 2.5px solid #3b82f6;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: opacity 0.2s, transform 0.12s ease-out;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+    }
+
+    .node-primary:hover {
+      transform: scale(1.06);
+      z-index: 30;
+    }
+
+    .node-primary.selected {
+      z-index: 40;
+      transform: scale(1.08);
+    }
+
+    .node-primary.dimmed {
+      opacity: 0.28;
+    }
+
+    .node-primary-char {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1.05;
+      color: var(--text-main);
+    }
+
+    .node-primary-reading {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-muted);
+      line-height: 1;
+      margin-top: 2px;
+      max-width: 54px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Reverted Clean Capsule Secondary Compound Node */
+    .node-secondary {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: var(--node-bg);
+      border: 2px solid #10b981;
+      box-shadow: var(--shadow-sm);
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      transition: opacity 0.2s, box-shadow 0.15s;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+      z-index: 15;
+    }
+
+    .node-secondary:hover {
+      box-shadow: var(--shadow-md);
+      z-index: 35;
+    }
+
+    .node-secondary.selected {
+      z-index: 45;
+    }
+
+    .node-secondary.dimmed {
+      opacity: 0.25;
+    }
+
+    .node-secondary-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .node-secondary-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .node-secondary-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+
+    .node-secondary-reading {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.15;
+      margin-top: 1px;
+    }
+
+    .hidden-node {
+      display: none !important;
+    }
+
+    /* ================= FLOATING CONTROLS ================= */
+    #link-mode-bar {
+      position: fixed;
+      top: 102px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-surface);
+      border: 1.5px solid #f59e0b;
+      border-radius: 12px;
+      padding: 8px 14px;
+      box-shadow: var(--shadow-lg);
+      display: none;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      z-index: 980;
+      max-width: calc(100vw - 24px);
+    }
+    #link-mode-bar.visible {
+      display: flex;
+    }
+
+    .link-type-chip {
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .link-type-chip.active {
+      color: #ffffff;
+      border-color: transparent;
+    }
+
+    #zoom-controls {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 4px;
+      box-shadow: var(--shadow-md);
+      z-index: 900;
+    }
+
+    .zoom-btn {
+      width: 30px;
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-main);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .zoom-btn:hover {
+      background: var(--bg-elevated);
+    }
+
+    #zoom-level-text {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      padding: 0 6px;
+      min-width: 44px;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    /* ================= INSPECTOR PANEL ================= */
+    #inspector-panel {
+      position: fixed;
+      top: 90px;
+      right: 0;
+      bottom: 0;
+      width: 350px;
+      max-width: 100vw;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border-color);
+      box-shadow: var(--shadow-lg);
+      z-index: 990;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.22s ease;
+    }
+
+    #inspector-panel.open {
+      transform: translateX(0);
+    }
+
+    @media (max-width: 768px) {
+      #inspector-panel {
+        top: auto;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 56vh;
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        border-radius: 16px 16px 0 0;
+        transform: translateY(100%);
+      }
+      #inspector-panel.open {
+        transform: translateY(0);
+      }
+    }
+
+    .inspector-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .inspector-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+    }
+
+    .inspector-body {
+      padding: 14px 16px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .field-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .field-input, .field-textarea, .field-select {
+      width: 100%;
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+    }
+    .field-input:focus, .field-textarea:focus, .field-select:focus {
+      border-color: var(--accent-primary);
+      background: var(--bg-surface);
+    }
+
+    .field-textarea {
+      min-height: 64px;
+      resize: vertical;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .kanji-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      border: 1.5px solid var(--accent-primary);
+      background: rgba(37, 99, 235, 0.08);
+      color: var(--text-main);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .kanji-chip:hover {
+      background: rgba(37, 99, 235, 0.18);
+    }
+
+    .hint-chip {
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px dashed var(--accent-primary);
+      background: transparent;
+      color: var(--accent-primary);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .hint-chip:hover {
+      background: rgba(37, 99, 235, 0.1);
+    }
+
+    .tag-toggle {
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .tag-toggle.active {
+      background: var(--accent-secondary);
+      border-color: var(--accent-secondary);
+      color: #ffffff;
+    }
+
+    .color-swatches {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .swatch-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+    }
+    .swatch-btn.active {
+      border-color: var(--text-main);
+      transform: scale(1.12);
+    }
+
+    .checklist-box {
+      max-height: 155px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-elevated);
+      padding: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .checklist-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      gap: 6px;
+    }
+    .checklist-item:hover {
+      background: var(--bg-surface);
+    }
+
+    .dict-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .dict-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 9px;
+      border-radius: 7px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .dict-link:hover {
+      border-color: var(--accent-primary);
+      color: var(--accent-primary);
+    }
+
+    .danger-zone {
+      border-top: 1px solid var(--border-color);
+      padding-top: 12px;
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    /* ================= MODALS ================= */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(3px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 2000;
+    }
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 480px;
+      max-height: 88vh;
+      overflow-y: auto;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* ================= TOOLTIP & TOAST ================= */
+    #bilingual-tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: rgba(15, 23, 42, 0.94);
+      color: #f8fafc;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 9px;
+      border-radius: 6px;
+      box-shadow: var(--shadow-md);
+      z-index: 5000;
+      opacity: 0;
+      transition: opacity 0.12s;
+      max-width: 260px;
+      white-space: nowrap;
+    }
+    #bilingual-tooltip.visible {
+      opacity: 1;
+    }
+
+    #toast-banner {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 9px 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: var(--shadow-lg);
+      z-index: 4500;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    #toast-banner.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP HEADER -->
+  <header id="top-bar">
+    <div class="brand-group">
+      <div class="brand-badge">
+        <img id="brand-icon-img" alt="漢字ネットワーク">
+      </div>
+      <span class="brand-title" data-tip-ja="漢字・熟語ネットワークマップ" data-tip-en="Kanji & Compound Network Map">漢字ネットワーク</span>
+      <!-- Shared Hotbar Mount Point (populated automatically by nexus-hub.js) -->
+      <div id="nexus-hub-slot"></div>
+    </div>
+
+    <div class="toolbar-scroll">
+      <button type="button" id="btn-open-add-primary" class="tb-btn primary" data-tip-ja="新しい親漢字を追加" data-tip-en="Add Primary Kanji">＋ 漢字</button>
+      <button type="button" id="btn-open-add-secondary" class="tb-btn secondary" data-tip-ja="新しい熟語を追加" data-tip-en="Add Compound">＋ 熟語</button>
+
+      <div class="tb-divider"></div>
+
+      <button type="button" id="btn-toggle-reveal" class="tb-btn" data-tip-ja="集中表示と全体表示を切替" data-tip-en="Toggle Focus Mode / Reveal All">集中表示</button>
+      <button type="button" id="btn-toggle-readings" class="tb-btn active" data-tip-ja="読み仮名の表示/非表示" data-tip-en="Show / Hide Readings">読み表示</button>
+      <button type="button" id="btn-toggle-link-mode" class="tb-btn" data-tip-ja="熟語同士の関連リンクを作成" data-tip-en="Interactive Compound Link Mode">リンク接続</button>
+      <button type="button" id="btn-auto-arrange" class="tb-btn" data-tip-ja="クラスター別に自動整列" data-tip-en="Auto-Arrange Clusters">自動整列</button>
+
+      <div class="tb-divider"></div>
+
+      <button type="button" id="btn-toggle-autolink" class="tb-btn active" data-tip-ja="構成漢字の自動リンク" data-tip-en="Auto-Link Constituent Kanji">自動リンク</button>
+      <button type="button" id="btn-toggle-autocreate" class="tb-btn active" data-tip-ja="未登録の親漢字を自動作成" data-tip-en="Auto-Create Missing Kanji">未登録漢字自動作成</button>
+
+      <div class="tb-divider"></div>
+
+      <button type="button" id="btn-undo" class="tb-btn" disabled data-tip-ja="操作を元に戻す (Ctrl+Z)" data-tip-en="Undo (Ctrl+Z)">↩ 戻す</button>
+      <button type="button" id="btn-redo" class="tb-btn" disabled data-tip-ja="操作をやり直す (Ctrl+Y)" data-tip-en="Redo (Ctrl+Y)">↪ やり直す</button>
+
+      <div class="tb-divider"></div>
+
+      <input type="search" id="map-search-input" placeholder="漢字・読み検索..." data-tip-ja="漢字・熟語・読みで検索" data-tip-en="Search Kanji / Reading">
+      <button type="button" id="btn-open-json" class="tb-btn" data-tip-ja="JSONデータの確認・入出力" data-tip-en="JSON Import / Export">JSON入出力</button>
+
+      <div class="lang-switch" data-tip-ja="表示言語切替" data-tip-en="Switch Interface Language">
+        <button type="button" id="lang-ja-btn" class="active">日本語</button>
+        <button type="button" id="lang-en-btn">EN</button>
+      </div>
+
+      <button type="button" id="btn-toggle-theme" class="tb-btn" data-tip-ja="ライト/ダークテーマ切替" data-tip-en="Toggle Light / Dark Theme">🌓</button>
+    </div>
+  </header>
+
+  <!-- TAG FILTER BAR -->
+  <div id="tag-filter-bar">
+    <div class="filter-pills" id="tag-filter-pills"></div>
+    <div class="map-stats-pill" id="map-stats-summary">0 漢字 / 0 熟語</div>
+  </div>
+
+  <!-- CANVAS -->
+  <main id="canvas-container">
+    <div id="world">
+      <svg id="edges-svg" viewBox="-10000 -10000 20000 20000">
+        <g id="edges-primary-layer"></g>
+        <g id="edges-lateral-layer"></g>
+      </svg>
+      <div id="nodes-layer"></div>
+    </div>
+  </main>
+
+  <!-- LINK MODE FLOATING BAR -->
+  <div id="link-mode-bar">
+    <span style="font-size: 12px; font-weight: 800; color: #d97706;">🔗 リンク接続モード:</span>
+    <span id="link-mode-status" style="font-size: 12px; font-weight: 600;">1つ目の熟語を選択</span>
+    <div id="link-mode-types" style="display: flex; gap: 4px; flex-wrap: wrap;"></div>
+    <button type="button" id="btn-exit-link-mode" class="tb-btn" style="padding: 3px 8px;">終了 (Esc)</button>
+  </div>
+
+  <!-- ZOOM CONTROLS -->
+  <div id="zoom-controls">
+    <button type="button" id="btn-zoom-out" class="zoom-btn" data-tip-ja="縮小" data-tip-en="Zoom Out">−</button>
+    <span id="zoom-level-text" data-tip-ja="100%にリセット" data-tip-en="Reset Zoom to 100%">100%</span>
+    <button type="button" id="btn-zoom-in" class="zoom-btn" data-tip-ja="拡大" data-tip-en="Zoom In">＋</button>
+    <button type="button" id="btn-zoom-fit" class="zoom-btn" style="width: auto; padding: 0 8px; font-size: 11px;" data-tip-ja="全体を表示" data-tip-en="Fit All Nodes">全体</button>
+  </div>
+
+  <!-- INSPECTOR SIDEBAR / BOTTOM SHEET -->
+  <aside id="inspector-panel" aria-label="Node Inspector">
+    <div class="inspector-header">
+      <span class="inspector-badge" id="inspector-type-badge">詳細</span>
+      <button type="button" id="btn-close-inspector" class="tb-btn" style="padding: 4px 9px;">✕</button>
+    </div>
+    <div class="inspector-body" id="inspector-body"></div>
+  </aside>
+
+  <!-- ADD PRIMARY KANJI MODAL -->
+  <div class="modal-backdrop" id="modal-add-primary">
+    <div class="modal-card">
+      <div class="modal-title">
+        <span>＋ 親漢字を追加</span>
+        <button type="button" class="tb-btn" data-close-modal="modal-add-primary">✕</button>
+      </div>
+      <div class="field-group">
+        <label class="field-label">漢字 (1文字)</label>
+        <input type="text" id="new-primary-label" class="field-input" maxlength="4" placeholder="例: 構">
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div class="field-group">
+          <label class="field-label">音読み</label>
+          <input type="text" id="new-primary-onyomi" class="field-input" placeholder="例: コウ">
+        </div>
+        <div class="field-group">
+          <label class="field-label">訓読み</label>
+          <input type="text" id="new-primary-kunyomi" class="field-input" placeholder="例: かま.える">
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">メモ</label>
+        <input type="text" id="new-primary-notes" class="field-input" placeholder="任意の学習メモ">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="tb-btn" data-close-modal="modal-add-primary">キャンセル</button>
+        <button type="button" id="btn-confirm-add-primary" class="tb-btn primary">追加する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD SECONDARY COMPOUND MODAL -->
+  <div class="modal-backdrop" id="modal-add-secondary">
+    <div class="modal-card">
+      <div class="modal-title">
+        <span>＋ 熟語・語彙を追加</span>
+        <button type="button" class="tb-btn" data-close-modal="modal-add-secondary">✕</button>
+      </div>
+      <div class="field-group">
+        <label class="field-label">熟語・単語</label>
+        <input type="text" id="new-sec-label" class="field-input" placeholder="例: 構造">
+        <div id="new-sec-kanji-preview" class="chip-row" style="margin-top: 4px;"></div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">読み (ひらがな)</label>
+        <input type="text" id="new-sec-reading" class="field-input" placeholder="例: こうぞう">
+      </div>
+      <div class="field-group">
+        <label class="field-label">品詞・用法タグ</label>
+        <div id="new-sec-tags" class="chip-row"></div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">メモ</label>
+        <input type="text" id="new-sec-notes" class="field-input" placeholder="意味・例文・ニュアンス">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="tb-btn" data-close-modal="modal-add-secondary">キャンセル</button>
+        <button type="button" id="btn-confirm-add-secondary" class="tb-btn secondary">追加する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JSON INSPECTOR / IMPORT / EXPORT MODAL -->
+  <div class="modal-backdrop" id="modal-json">
+    <div class="modal-card" style="max-width: 600px;">
+      <div class="modal-title">
+        <span>JSON データ入出力・メンテナンス</span>
+        <button type="button" class="tb-btn" data-close-modal="modal-json">✕</button>
+      </div>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+        <button type="button" id="btn-export-json" class="tb-btn primary">⬇ JSONダウンロード</button>
+        <label class="tb-btn" style="cursor: pointer;">
+          ⬆ JSONファイル読込
+          <input type="file" id="input-import-json-file" accept=".json,application/json" style="display: none;">
+        </label>
+        <button type="button" id="btn-rescan-links" class="tb-btn">🔄 全ノード自動リンク再実行</button>
+        <button type="button" id="btn-reset-starter" class="tb-btn">🌱 サンプル読込</button>
+      </div>
+      <div class="field-group">
+        <label class="field-label">生JSONデータ (直接編集して適用可能)</label>
+        <textarea id="json-editor-textarea" class="field-textarea" style="min-height: 220px; font-family: monospace; font-size: 11px;"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="tb-btn" data-close-modal="modal-json">閉じる</button>
+        <button type="button" id="btn-apply-json-text" class="tb-btn primary">テキストから適用</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="bilingual-tooltip"></div>
+  <div id="toast-banner"></div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // Sync top-left brand icon with page favicon
+      const brandImg = document.getElementById('brand-icon-img');
+      if (brandImg) {
+        brandImg.src = document.querySelector('link[rel~="icon"]')?.href || '';
+      }
+
+      // =====================================================================
+      // CONSTANTS & METADATA
+      // =====================================================================
+      const STORAGE_DATA_KEY = 'kanji_nexus_data_v1';
+      const STORAGE_LANG_KEY = 'kanji_nexus_lang';
+      const STORAGE_THEME_KEY = 'kanji_nexus_theme';
+
+      const PALETTE = [
+        '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444',
+        '#06b6d4', '#ec4899', '#6366f1', '#14b8a6', '#64748b'
+      ];
+
+      const GRAMMAR_TAGS = [
+        { id: 'suru', ja: 'する動', en: 'Suru-verb' },
+        { id: 'intransitive', ja: '自動', en: 'Intransitive' },
+        { id: 'transitive', ja: '他動', en: 'Transitive' },
+        { id: 'na-adj', ja: 'な形', en: 'Na-adj' },
+        { id: 'i-adj', ja: 'い形', en: 'I-adj' },
+        { id: 'adverb', ja: '副', en: 'Adverb' },
+        { id: 'kana', ja: 'かな表記', en: 'Usually Kana' }
+      ];
+
+      const LINK_TYPES = {
+        related:    { ja: '関連語', en: 'Related',    short: '関', color: '#64748b' },
+        antonym:    { ja: '対義語', en: 'Antonym',    short: '対', color: '#f43f5e' },
+        synonym:    { ja: '類義語', en: 'Synonym',    short: '類', color: '#0ea5e9' },
+        derivative: { ja: '派生語', en: 'Derivative', short: '派', color: '#10b981' },
+        lookalike:  { ja: '類形語', en: 'Lookalike',  short: '似', color: '#f59e0b' }
+      };
+
+      const STARTER_DATA = {
+        primaryNodes: [
+          {
+            id: 'p-kou', label: '構', onyomi: 'コウ', kunyomi: 'かま.える',
+            color: '#3b82f6', x: -240, y: -120, notes: '',
+            connections: [
+              {
+                id: 's-kouzou', label: '構造', reading: 'こうぞう',
+                color: '#10b981', x: -80, y: -120,
+                linksTo: [{ targetId: 's-kousei', type: 'synonym' }],
+                tags: [], notes: ''
+              },
+              {
+                id: 's-kousei', label: '構成', reading: 'こうせい',
+                color: '#10b981', x: -80, y: 20,
+                linksTo: [{ targetId: 's-kouzou', type: 'synonym' }],
+                tags: ['suru'], notes: ''
+              }
+            ]
+          },
+          {
+            id: 'p-zou', label: '造', onyomi: 'ゾウ', kunyomi: 'つく.る',
+            color: '#3b82f6', x: 80, y: -120, notes: '',
+            connections: [
+              { refId: 's-kouzou' },
+              {
+                id: 's-kaizou', label: '改造', reading: 'かいぞう',
+                color: '#10b981', x: 240, y: -120,
+                linksTo: [], tags: ['suru'], notes: ''
+              }
+            ]
+          },
+          {
+            id: 'p-sei', label: '成', onyomi: 'セイ・ジョウ', kunyomi: 'な.る',
+            color: '#3b82f6', x: 80, y: 20, notes: '',
+            connections: [
+              { refId: 's-kousei' }
+            ]
+          },
+          {
+            id: 'p-kai', label: '改', onyomi: 'カイ', kunyomi: 'あらた.める',
+            color: '#3b82f6', x: 400, y: -120, notes: '',
+            connections: [
+              { refId: 's-kaizou' }
+            ]
+          },
+          {
+            id: 'p-tai', label: '対', onyomi: 'タイ・ツイ', kunyomi: '',
+            color: '#8b5cf6', x: -80, y: 210, notes: '',
+            connections: [
+              {
+                id: 's-taishou1', label: '対象', reading: 'たいしょう',
+                color: '#0ea5e9', x: -240, y: 310,
+                linksTo: [
+                  { targetId: 's-taishou2', type: 'lookalike' },
+                  { targetId: 's-taishou3', type: 'lookalike' }
+                ],
+                tags: [], notes: ''
+              },
+              {
+                id: 's-taishou2', label: '対照', reading: 'たいしょう',
+                color: '#0ea5e9', x: -80, y: 330,
+                linksTo: [
+                  { targetId: 's-taishou1', type: 'lookalike' },
+                  { targetId: 's-taishou3', type: 'lookalike' }
+                ],
+                tags: ['suru', 'na-adj'], notes: ''
+              },
+              {
+                id: 's-taishou3', label: '対称', reading: 'たいしょう',
+                color: '#0ea5e9', x: 80, y: 310,
+                linksTo: [
+                  { targetId: 's-taishou1', type: 'lookalike' },
+                  { targetId: 's-taishou2', type: 'lookalike' }
+                ],
+                tags: ['na-adj'], notes: ''
+              }
+            ]
+          }
+        ]
+      };
+
+      // =====================================================================
+      // APPLICATION STATE
+      // =====================================================================
+      const state = {
+        data: { primaryNodes: [] },
+        selectedId: null,       // 'p-...' or 's-...'
+        revealAll: false,
+        showReadings: true,
+        autoLink: true,
+        autoCreatePrimary: true,
+        linkMode: false,
+        linkSourceId: null,
+        activeLinkType: 'antonym',
+        activeTagFilter: 'all',
+        searchQuery: '',
+        lang: 'ja',
+        theme: 'light',
+        camera: { x: 0, y: 0, scale: 1 },
+        history: [],
+        future: []
+      };
+
+      // =====================================================================
+      // DOM REFERENCES
+      // =====================================================================
+      const elCanvasContainer = document.getElementById('canvas-container');
+      const elWorld = document.getElementById('world');
+      const elEdgesPrimary = document.getElementById('edges-primary-layer');
+      const elEdgesLateral = document.getElementById('edges-lateral-layer');
+      const elNodesLayer = document.getElementById('nodes-layer');
+      const elInspector = document.getElementById('inspector-panel');
+      const elInspectorBody = document.getElementById('inspector-body');
+      const elInspectorBadge = document.getElementById('inspector-type-badge');
+      const elTooltip = document.getElementById('bilingual-tooltip');
+      const elToast = document.getElementById('toast-banner');
+
+      // =====================================================================
+      // UTILITIES: KANJI EXTRACTION, HIRAGANA, LINK NORMALIZATION
+      // =====================================================================
+      function genId(prefix) {
+        return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      }
+
+      function escapeHtml(str) {
+        return String(str ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function toHiragana(str) {
+        return String(str || '').replace(/[\u30a1-\u30f6]/g, (ch) =>
+          String.fromCharCode(ch.charCodeAt(0) - 0x60)
+        );
+      }
+
+      function extractKanji(text) {
+        const chars = [...String(text || '')];
+        const result = [];
+        for (let i = 0; i < chars.length; i++) {
+          const ch = chars[i] === '々' && i > 0 ? chars[i - 1] : chars[i];
+          if (/\p{Script=Han}/u.test(ch) && !result.includes(ch)) {
+            result.push(ch);
+          }
+        }
+        return result;
+      }
+
+      function normalizeLinkList(rawList) {
+        if (!Array.isArray(rawList)) return [];
+        const seen = new Set();
+        const normalized = [];
+        for (const item of rawList) {
+          if (typeof item === 'string' && item) {
+            if (!seen.has(item)) {
+              seen.add(item);
+              normalized.push({ targetId: item, type: 'related' });
+            }
+          } else if (item && typeof item === 'object' && item.targetId) {
+            const tid = String(item.targetId);
+            const type = LINK_TYPES[item.type] ? item.type : 'related';
+            if (!seen.has(tid)) {
+              seen.add(tid);
+              normalized.push({ targetId: tid, type });
+            }
+          }
+        }
+        return normalized;
+      }
+
+      function inferTagsFromNotes(notes, existingTags = []) {
+        const tags = new Set(Array.isArray(existingTags) ? existingTags : []);
+        const n = String(notes || '');
+        if (/する/.test(n)) tags.add('suru');
+        if (/自動詞/.test(n)) tags.add('intransitive');
+        if (/他動詞/.test(n)) tags.add('transitive');
+        if (/な形容詞|形容動詞/.test(n)) tags.add('na-adj');
+        if (/い形容詞/.test(n)) tags.add('i-adj');
+        if (/副詞/.test(n)) tags.add('adverb');
+        if (/かな表記|ひらがな/.test(n)) tags.add('kana');
+        return [...tags];
+      }
+
+      function normalizeDataSchema(raw) {
+        const cloned = JSON.parse(JSON.stringify(raw || { primaryNodes: [] }));
+        if (!Array.isArray(cloned.primaryNodes)) cloned.primaryNodes = [];
+        for (const p of cloned.primaryNodes) {
+          if (!p.id) p.id = genId('p');
+          p.label = String(p.label || '').trim();
+          p.onyomi = String(p.onyomi || '');
+          p.kunyomi = String(p.kunyomi || '');
+          p.color = p.color || '#3b82f6';
+          p.x = Number.isFinite(p.x) ? p.x : 0;
+          p.y = Number.isFinite(p.y) ? p.y : 0;
+          p.notes = p.notes === '自動作成された親漢字' ? '' : String(p.notes || '');
+          if (!Array.isArray(p.connections)) p.connections = [];
+          for (const c of p.connections) {
+            if (c && c.id) {
+              c.label = String(c.label || '').trim();
+              c.reading = String(c.reading || '');
+              c.color = c.color || '#10b981';
+              c.x = Number.isFinite(c.x) ? c.x : p.x;
+              c.y = Number.isFinite(c.y) ? c.y : p.y + 110;
+              c.linksTo = normalizeLinkList(c.linksTo);
+              c.tags = inferTagsFromNotes(c.notes, c.tags);
+              c.notes = String(c.notes || '');
+            }
+          }
+        }
+        return cloned;
+      }
+
+      function showToast(msg) {
+        elToast.textContent = msg;
+        elToast.classList.add('visible');
+        clearTimeout(showToast._timer);
+        showToast._timer = setTimeout(() => elToast.classList.remove('visible'), 2400);
+      }
+
+      // =====================================================================
+      // GRAPH INDEXING & LOOKUP HELPERS
+      // =====================================================================
+      function buildGraphIndex() {
+        const pById = new Map();
+        const pByLabel = new Map();
+        const sById = new Map();
+        const sOwner = new Map();
+        const sParents = new Map();
+
+        for (const p of state.data.primaryNodes) {
+          pById.set(p.id, p);
+          if (p.label) pByLabel.set(p.label, p);
+        }
+
+        for (const p of state.data.primaryNodes) {
+          for (const c of p.connections) {
+            if (c && c.id) {
+              sById.set(c.id, c);
+              sOwner.set(c.id, p.id);
+              if (!sParents.has(c.id)) sParents.set(c.id, []);
+              if (!sParents.get(c.id).includes(p.id)) {
+                sParents.get(c.id).push(p.id);
+              }
+            } else if (c && c.refId) {
+              if (!sParents.has(c.refId)) sParents.set(c.refId, []);
+              if (!sParents.get(c.refId).includes(p.id)) {
+                sParents.get(c.refId).push(p.id);
+              }
+            }
+          }
+        }
+
+        return { pById, pByLabel, sById, sOwner, sParents };
+      }
+
+      // =====================================================================
+      // PERSISTENCE & UNDO / REDO HISTORY
+      // =====================================================================
+      function saveData() {
+        if (window.NexusHub && typeof window.NexusHub.saveData === 'function') {
+          window.NexusHub.saveData(state.data);
+        } else {
+          try {
+            localStorage.setItem(STORAGE_DATA_KEY, JSON.stringify(state.data));
+          } catch (_) {}
+        }
+      }
+
+      function pushHistory() {
+        state.history.push(JSON.stringify(state.data));
+        if (state.history.length > 50) state.history.shift();
+        state.future = [];
+        updateHistoryButtons();
+      }
+
+      function undo() {
+        if (!state.history.length) return;
+        state.future.push(JSON.stringify(state.data));
+        const prev = state.history.pop();
+        state.data = normalizeDataSchema(JSON.parse(prev));
+        saveData();
+        updateHistoryButtons();
+        renderAll();
+        showToast(state.lang === 'en' ? 'Undid last action' : '操作を元に戻しました');
+      }
+
+      function redo() {
+        if (!state.future.length) return;
+        state.history.push(JSON.stringify(state.data));
+        const next = state.future.pop();
+        state.data = normalizeDataSchema(JSON.parse(next));
+        saveData();
+        updateHistoryButtons();
+        renderAll();
+        showToast(state.lang === 'en' ? 'Redid action' : '操作をやり直しました');
+      }
+
+      function updateHistoryButtons() {
+        document.getElementById('btn-undo').disabled = state.history.length === 0;
+        document.getElementById('btn-redo').disabled = state.future.length === 0;
+      }
+
+      // =====================================================================
+      // COLLISION-SAFE POSITIONING & BIDIRECTIONAL AUTO-LINKING
+      // =====================================================================
+      function getAllNodeCoords(excludeId = null) {
+        const coords = [];
+        for (const p of state.data.primaryNodes) {
+          if (p.id !== excludeId) coords.push({ x: p.x, y: p.y, r: 46 });
+          for (const c of p.connections) {
+            if (c && c.id && c.id !== excludeId) {
+              coords.push({ x: c.x, y: c.y, r: 44 });
+            }
+          }
+        }
+        return coords;
+      }
+
+      function findFreePosition(targetX, targetY, excludeId = null, minClearance = 105) {
+        const occupied = getAllNodeCoords(excludeId);
+        const isClear = (x, y) =>
+          occupied.every((o) => Math.hypot(o.x - x, o.y - y) >= minClearance);
+
+        if (isClear(targetX, targetY)) {
+          return { x: Math.round(targetX), y: Math.round(targetY) };
+        }
+
+        for (let step = 1; step <= 80; step++) {
+          const angle = step * 0.65;
+          const radius = 36 + step * 14;
+          const cx = Math.round(targetX + Math.cos(angle) * radius * 1.25);
+          const cy = Math.round(targetY + Math.sin(angle) * radius * 0.9);
+          if (isClear(cx, cy)) return { x: cx, y: cy };
+        }
+        return { x: Math.round(targetX + 120), y: Math.round(targetY + 120) };
+      }
+
+      function getViewportCenterWorld() {
+        const rect = elCanvasContainer.getBoundingClientRect();
+        return {
+          x: (rect.width / 2 - state.camera.x) / state.camera.scale,
+          y: (rect.height / 2 - state.camera.y) / state.camera.scale
+        };
+      }
+
+      function autoLinkDerivativesForSecondary(secNode) {
+        if (!secNode || !secNode.label) return;
+        const { sById } = buildGraphIndex();
+        const label = secNode.label;
+        const kanjiA = extractKanji(label);
+        if (!kanjiA.length) return;
+
+        for (const other of sById.values()) {
+          if (other.id === secNode.id || !other.label) continue;
+          const isPrefixDerivative =
+            (other.label.length > label.length && other.label.startsWith(label)) ||
+            (label.length > other.label.length && label.startsWith(other.label));
+
+          if (isPrefixDerivative) {
+            if (!secNode.linksTo.some((l) => l.targetId === other.id)) {
+              secNode.linksTo.push({ targetId: other.id, type: 'derivative' });
+            }
+            if (!other.linksTo.some((l) => l.targetId === secNode.id)) {
+              other.linksTo.push({ targetId: secNode.id, type: 'derivative' });
+            }
+          }
+        }
+      }
+
+      function reconcileSecondaryNode(secNode, preferredPrimaryId = null) {
+        if (!secNode) return;
+        const kanjiChars = extractKanji(secNode.label);
+        let { pByLabel, sOwner } = buildGraphIndex();
+
+        // 1. Auto-create missing primary kanji anchored near existing sibling kanji
+        if (state.autoLink && state.autoCreatePrimary) {
+          const existingSiblings = kanjiChars
+            .map((ch) => pByLabel.get(ch))
+            .filter(Boolean);
+
+          for (const ch of kanjiChars) {
+            if (!pByLabel.has(ch)) {
+              const anchor =
+                existingSiblings[0] ||
+                (preferredPrimaryId
+                  ? state.data.primaryNodes.find((p) => p.id === preferredPrimaryId)
+                  : null);
+              const base = anchor
+                ? { x: anchor.x + 240, y: anchor.y }
+                : getViewportCenterWorld();
+              const pos = findFreePosition(base.x, base.y);
+              const newPrimary = {
+                id: genId('p'),
+                label: ch,
+                onyomi: '',
+                kunyomi: '',
+                color: '#3b82f6',
+                x: pos.x,
+                y: pos.y,
+                notes: '',
+                connections: []
+              };
+              state.data.primaryNodes.push(newPrimary);
+              existingSiblings.push(newPrimary);
+              pByLabel.set(ch, newPrimary);
+            }
+          }
+        }
+
+        // 2. Wire parent primary connections
+        if (state.autoLink && kanjiChars.length > 0) {
+          const matchedPrimaries = kanjiChars
+            .map((ch) => pByLabel.get(ch))
+            .filter(Boolean);
+
+          if (matchedPrimaries.length > 0) {
+            const currentOwnerId = sOwner.get(secNode.id);
+            let ownerPrimary =
+              matchedPrimaries.find((p) => p.id === preferredPrimaryId) ||
+              matchedPrimaries.find((p) => p.id === currentOwnerId) ||
+              matchedPrimaries[0];
+
+            // Remove old ownership/refId from all primaries
+            for (const p of state.data.primaryNodes) {
+              p.connections = p.connections.filter(
+                (c) => c.id !== secNode.id && c.refId !== secNode.id
+              );
+            }
+
+            // Attach full object to ownerPrimary and refId to other matched primaries
+            ownerPrimary.connections.push(secNode);
+            for (const p of matchedPrimaries) {
+              if (p.id !== ownerPrimary.id) {
+                p.connections.push({ refId: secNode.id });
+              }
+            }
+          }
+        }
+
+        // 3. Auto-link morphological derivatives (e.g., 魅力 <-> 魅力的)
+        autoLinkDerivativesForSecondary(secNode);
+      }
+
+      function reconcileAllNodes() {
+        const { sById, sOwner } = buildGraphIndex();
+        for (const sec of sById.values()) {
+          reconcileSecondaryNode(sec, sOwner.get(sec.id));
+        }
+      }
+
+      // =====================================================================
+      // 3-TIER CLUSTER AUTO-ARRANGE (自動整列)
+      // =====================================================================
+      function autoArrangeClusters() {
+        const primaries = state.data.primaryNodes;
+        if (!primaries.length) return;
+        pushHistory();
+
+        const { pById, sById, sParents } = buildGraphIndex();
+        const adj = new Map();
+        for (const p of primaries) adj.set(p.id, new Set());
+        for (const [sid, pids] of sParents.entries()) {
+          if (!sById.has(sid)) continue;
+          for (const pid of pids) {
+            if (!adj.has(pid)) adj.set(pid, new Set());
+            adj.get(pid).add(sid);
+            if (!adj.has(sid)) adj.set(sid, new Set());
+            adj.get(sid).add(pid);
+          }
+        }
+
+        const visited = new Set();
+        const components = [];
+        for (const p of primaries) {
+          if (visited.has(p.id)) continue;
+          const compP = [];
+          const compS = [];
+          const stack = [p.id];
+          visited.add(p.id);
+          while (stack.length) {
+            const curr = stack.pop();
+            if (pById.has(curr)) compP.push(curr);
+            else if (sById.has(curr)) compS.push(curr);
+            for (const nxt of adj.get(curr) || []) {
+              if (!visited.has(nxt)) {
+                visited.add(nxt);
+                stack.push(nxt);
+              }
+            }
+          }
+          components.push({ compP, compS });
+        }
+
+        const multiClusters = components.filter((c) => c.compP.length >= 3);
+        const pairClusters = components.filter((c) => c.compP.length === 2);
+        const singleClusters = components.filter((c) => c.compP.length <= 1);
+
+        // Zone 1 (Top): Multi-Kanji Hubs & Chains
+        let zone1X = -((multiClusters.length - 1) * 620) / 2;
+        const zone1Y = -620;
+        for (const { compP, compS } of multiClusters) {
+          // Pick highest-degree primary kanji as hub center
+          compP.sort((a, b) => (adj.get(b)?.size || 0) - (adj.get(a)?.size || 0));
+          const hub = pById.get(compP[0]);
+          hub.x = Math.round(zone1X);
+          hub.y = Math.round(zone1Y);
+
+          const satellites = compP.slice(1);
+          const radius = Math.max(240, satellites.length * 46);
+          satellites.forEach((pid, idx) => {
+            const angle = (2 * Math.PI * idx) / satellites.length - Math.PI / 2;
+            const node = pById.get(pid);
+            node.x = Math.round(zone1X + Math.cos(angle) * radius);
+            node.y = Math.round(zone1Y + Math.sin(angle) * radius);
+          });
+
+          // Place each compound at centroid of its parent kanji (or offset if 1 parent)
+          compS.forEach((sid, idx) => {
+            const sec = sById.get(sid);
+            const parents = (sParents.get(sid) || []).map((pid) => pById.get(pid)).filter(Boolean);
+            if (parents.length >= 2) {
+              const avgX = parents.reduce((acc, n) => acc + n.x, 0) / parents.length;
+              const avgY = parents.reduce((acc, n) => acc + n.y, 0) / parents.length;
+              const pos = findFreePosition(avgX, avgY, sec.id, 95);
+              sec.x = pos.x;
+              sec.y = pos.y;
+            } else if (parents.length === 1) {
+              const angle = (idx * 0.9) + Math.PI / 3;
+              const pos = findFreePosition(
+                parents[0].x + Math.cos(angle) * 125,
+                parents[0].y + Math.sin(angle) * 125,
+                sec.id,
+                95
+              );
+              sec.x = pos.x;
+              sec.y = pos.y;
+            }
+          });
+
+          zone1X += Math.max(620, radius * 2 + 220);
+        }
+
+        // Zone 2 (Middle): 2-Kanji Pairs in 6-column grid
+        const cols = 6;
+        const p2StartX = -((cols - 1) * 480) / 2;
+        const p2StartY = multiClusters.length ? 40 : -320;
+        pairClusters.forEach(({ compP, compS }, idx) => {
+          const r = Math.floor(idx / cols);
+          const c = idx % cols;
+          const cx = p2StartX + c * 480;
+          const cy = p2StartY + r * 240;
+
+          const pLeft = pById.get(compP[0]);
+          const pRight = pById.get(compP[1]);
+          pLeft.x = Math.round(cx - 115);
+          pLeft.y = Math.round(cy);
+          pRight.x = Math.round(cx + 115);
+          pRight.y = Math.round(cy);
+
+          let singleOffset = 0;
+          for (const sid of compS) {
+            const sec = sById.get(sid);
+            const parents = sParents.get(sid) || [];
+            if (parents.length >= 2) {
+              sec.x = Math.round(cx);
+              sec.y = Math.round(cy + singleOffset * 68);
+              singleOffset++;
+            } else if (parents.length === 1) {
+              const parent = pById.get(parents[0]);
+              sec.x = parent.x;
+              sec.y = parent.y + 105;
+            }
+          }
+        });
+
+        // Zone 3 (Bottom): Single-Kanji Islands in 6-column grid
+        const pairRows = Math.ceil(pairClusters.length / cols);
+        const s1StartY = p2StartY + pairRows * 240 + (pairRows ? 80 : 0);
+        singleClusters.forEach(({ compP, compS }, idx) => {
+          const r = Math.floor(idx / cols);
+          const c = idx % cols;
+          const cx = p2StartX + c * 480;
+          const cy = s1StartY + r * 230;
+
+          if (compP[0]) {
+            const p = pById.get(compP[0]);
+            p.x = Math.round(cx);
+            p.y = Math.round(cy - 45);
+          }
+          compS.forEach((sid, sIdx) => {
+            const sec = sById.get(sid);
+            sec.x = Math.round(cx + sIdx * 110);
+            sec.y = Math.round(cy + 65);
+          });
+        });
+
+        saveData();
+        renderAll();
+        fitCameraToNodes();
+        showToast(state.lang === 'en' ? 'Auto-arranged clusters' : 'クラスター別に自動整列しました');
+      }
+
+      // =====================================================================
+      // CAMERA PAN, ZOOM & CRISP TEXT RE-RASTERIZATION
+      // =====================================================================
+      let rasterizeTimer = null;
+      function scheduleCrispRasterize() {
+        clearTimeout(rasterizeTimer);
+        rasterizeTimer = setTimeout(() => {
+          // Force crisp vector text re-rasterization after zoom settles
+          elNodesLayer.style.opacity = '0.999';
+          requestAnimationFrame(() => {
+            elNodesLayer.style.opacity = '';
+          });
+        }, 100);
+      }
+
+      function applyCameraTransform(animate = false) {
+        elWorld.style.transition = animate ? 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+        elWorld.style.transform = `translate(${state.camera.x}px, ${state.camera.y}px) scale(${state.camera.scale})`;
+        document.getElementById('zoom-level-text').textContent = `${Math.round(state.camera.scale * 100)}%`;
+        scheduleCrispRasterize();
+      }
+
+      function focusCameraOnWorldPoint(wx, wy, minScale = 0.95) {
+        const rect = elCanvasContainer.getBoundingClientRect();
+        const targetScale = Math.max(state.camera.scale, minScale);
+        const inspectorOffset =
+          window.innerWidth > 768 && elInspector.classList.contains('open') ? 160 : 0;
+        state.camera.scale = targetScale;
+        state.camera.x = (rect.width - inspectorOffset) / 2 - wx * targetScale;
+        state.camera.y = rect.height / 2 - wy * targetScale;
+        applyCameraTransform(true);
+      }
+
+      function fitCameraToNodes() {
+        const coords = getAllNodeCoords();
+        const rect = elCanvasContainer.getBoundingClientRect();
+        if (!coords.length) {
+          state.camera = { x: rect.width / 2, y: rect.height / 2, scale: 1 };
+          applyCameraTransform(true);
+          return;
+        }
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const c of coords) {
+          if (c.x < minX) minX = c.x;
+          if (c.x > maxX) maxX = c.x;
+          if (c.y < minY) minY = c.y;
+          if (c.y > maxY) maxY = c.y;
+        }
+        const pad = 110;
+        const w = Math.max(240, maxX - minX + pad * 2);
+        const h = Math.max(240, maxY - minY + pad * 2);
+        const scale = Math.min(1.25, Math.max(0.25, Math.min(rect.width / w, rect.height / h)));
+        const midX = (minX + maxX) / 2;
+        const midY = (minY + maxY) / 2;
+        state.camera.scale = scale;
+        state.camera.x = rect.width / 2 - midX * scale;
+        state.camera.y = rect.height / 2 - midY * scale;
+        applyCameraTransform(true);
+      }
+
+      // =====================================================================
+      // VISIBILITY & PROGRESSIVE DISCLOSURE COMPUTATION
+      // =====================================================================
+      function computeVisibilityState() {
+        const { pById, sById, sParents } = buildGraphIndex();
+        const visiblePrimaries = new Set(pById.keys());
+        const visibleSecondaries = new Set();
+        const highlightedPrimaries = new Set();
+        const highlightedSecondaries = new Set();
+
+        const q = toHiragana(state.searchQuery.trim().toLowerCase());
+        const tagFilter = state.activeTagFilter;
+
+        // Tag or search filter active -> reveal matching nodes across map
+        if (q || tagFilter !== 'all') {
+          for (const sec of sById.values()) {
+            const tagOk = tagFilter === 'all' || (sec.tags && sec.tags.includes(tagFilter));
+            const searchOk =
+              !q ||
+              sec.label.toLowerCase().includes(q) ||
+              toHiragana(sec.reading).toLowerCase().includes(q);
+            if (tagOk && searchOk) {
+              visibleSecondaries.add(sec.id);
+              highlightedSecondaries.add(sec.id);
+              for (const pid of sParents.get(sec.id) || []) {
+                highlightedPrimaries.add(pid);
+              }
+            }
+          }
+          if (q && tagFilter === 'all') {
+            for (const p of pById.values()) {
+              if (
+                p.label.toLowerCase().includes(q) ||
+                toHiragana(p.onyomi).toLowerCase().includes(q) ||
+                toHiragana(p.kunyomi).toLowerCase().includes(q)
+              ) {
+                highlightedPrimaries.add(p.id);
+                for (const c of p.connections) {
+                  const sid = c.id || c.refId;
+                  if (sid && sById.has(sid)) visibleSecondaries.add(sid);
+                }
+              }
+            }
+          }
+          return {
+            visiblePrimaries,
+            visibleSecondaries,
+            highlightedPrimaries,
+            highlightedSecondaries,
+            hasFocus: true
+          };
+        }
+
+        // Reveal All mode
+        if (state.revealAll) {
+          for (const sid of sById.keys()) visibleSecondaries.add(sid);
+        }
+
+        // Progressive disclosure around selected node
+        if (state.selectedId) {
+          if (pById.has(state.selectedId)) {
+            const p = pById.get(state.selectedId);
+            highlightedPrimaries.add(p.id);
+            for (const c of p.connections) {
+              const sid = c.id || c.refId;
+              if (sid && sById.has(sid)) {
+                visibleSecondaries.add(sid);
+                highlightedSecondaries.add(sid);
+                const sec = sById.get(sid);
+                for (const link of sec.linksTo) {
+                  if (sById.has(link.targetId)) {
+                    visibleSecondaries.add(link.targetId);
+                  }
+                }
+              }
+            }
+          } else if (sById.has(state.selectedId)) {
+            const sec = sById.get(state.selectedId);
+            visibleSecondaries.add(sec.id);
+            highlightedSecondaries.add(sec.id);
+            for (const pid of sParents.get(sec.id) || []) {
+              highlightedPrimaries.add(pid);
+            }
+            for (const link of sec.linksTo) {
+              if (sById.has(link.targetId)) {
+                visibleSecondaries.add(link.targetId);
+                highlightedSecondaries.add(link.targetId);
+                for (const pid of sParents.get(link.targetId) || []) {
+                  highlightedPrimaries.add(pid);
+                }
+              }
+            }
+          }
+        }
+
+        const hasFocus = Boolean(state.selectedId);
+        return {
+          visiblePrimaries,
+          visibleSecondaries,
+          highlightedPrimaries,
+          highlightedSecondaries,
+          hasFocus
+        };
+      }
+
+      // =====================================================================
+      // RENDERING: FILTER BAR, EDGES, NODES
+      // =====================================================================
+      function renderFilterBar() {
+        const pillsWrap = document.getElementById('tag-filter-pills');
+        const allBtn = `<button type="button" class="filter-pill ${state.activeTagFilter === 'all' ? 'active' : ''}" data-filter-tag="all">${state.lang === 'en' ? 'All' : 'すべて'}</button>`;
+        const tagBtns = GRAMMAR_TAGS.map(
+          (t) =>
+            `<button type="button" class="filter-pill ${state.activeTagFilter === t.id ? 'active' : ''}" data-filter-tag="${t.id}">${state.lang === 'en' ? t.en : t.ja}</button>`
+        ).join('');
+        pillsWrap.innerHTML = allBtn + tagBtns;
+
+        pillsWrap.querySelectorAll('[data-filter-tag]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.activeTagFilter = btn.dataset.filterTag;
+            renderAll();
+          });
+        });
+
+        const { sById } = buildGraphIndex();
+        const pCount = state.data.primaryNodes.length;
+        const sCount = sById.size;
+        document.getElementById('map-stats-summary').textContent =
+          state.lang === 'en'
+            ? `${pCount} Kanji · ${sCount} Compounds`
+            : `${pCount} 漢字 · ${sCount} 熟語`;
+      }
+
+      function curvedPath(x1, y1, x2, y2, bend = 0.14) {
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const cx = mx - dy * bend;
+        const cy = my + dx * bend;
+        return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
+      }
+
+      function renderEdgesAndNodes() {
+        const { pById, sById, sParents } = buildGraphIndex();
+        const vis = computeVisibilityState();
+
+        // 1. Render Primary -> Secondary Solid Edges
+        let primaryPathsHtml = '';
+        for (const [sid, pids] of sParents.entries()) {
+          if (!vis.visibleSecondaries.has(sid)) continue;
+          const sec = sById.get(sid);
+          if (!sec) continue;
+          for (const pid of pids) {
+            const p = pById.get(pid);
+            if (!p) continue;
+            const isHi =
+              state.selectedId === pid ||
+              state.selectedId === sid ||
+              (vis.highlightedPrimaries.has(pid) && vis.highlightedSecondaries.has(sid));
+            primaryPathsHtml += `<path class="edge-primary ${isHi ? 'highlighted' : ''}" d="${curvedPath(p.x, p.y, sec.x, sec.y, 0.08)}" />`;
+          }
+        }
+        elEdgesPrimary.innerHTML = primaryPathsHtml;
+
+        // 2. Render Lateral Secondary <-> Secondary Dashed Edges
+        let lateralPathsHtml = '';
+        const drawnPairs = new Set();
+        for (const sec of sById.values()) {
+          if (!vis.visibleSecondaries.has(sec.id)) continue;
+          for (const link of sec.linksTo) {
+            const target = sById.get(link.targetId);
+            if (!target || !vis.visibleSecondaries.has(target.id)) continue;
+            const pairKey = [sec.id, target.id].sort().join('::');
+            if (drawnPairs.has(pairKey)) continue;
+            drawnPairs.add(pairKey);
+
+            const meta = LINK_TYPES[link.type] || LINK_TYPES.related;
+            lateralPathsHtml += `<path class="edge-lateral" stroke="${meta.color}" d="${curvedPath(sec.x, sec.y, target.x, target.y, 0.18)}" />`;
+          }
+        }
+        elEdgesLateral.innerHTML = lateralPathsHtml;
+
+        // 3. Render Nodes
+        const frag = document.createDocumentFragment();
+
+        for (const p of state.data.primaryNodes) {
+          const isSelected = state.selectedId === p.id;
+          const isDimmed =
+            vis.hasFocus && !isSelected && !vis.highlightedPrimaries.has(p.id);
+
+          const div = document.createElement('div');
+          div.className =
+            'node-primary' +
+            (isSelected ? ' selected' : '') +
+            (isDimmed ? ' dimmed' : '');
+          div.dataset.nodeId = p.id;
+          div.style.left = `${p.x}px`;
+          div.style.top = `${p.y}px`;
+          div.style.borderColor = p.color || '#3b82f6';
+
+          const glowStyle = isSelected
+            ? `0 0 0 5px ${p.color || '#3b82f6'}33, 0 8px 20px rgba(15, 23, 42, 0.18)`
+            : '';
+          if (glowStyle) div.style.boxShadow = glowStyle;
+
+          const subReading = state.showReadings ? (p.onyomi || p.kunyomi || '') : '';
+          div.innerHTML = `
+            <span class="node-primary-char">${escapeHtml(p.label)}</span>
+            ${subReading ? `<span class="node-primary-reading">${escapeHtml(subReading)}</span>` : ''}
+          `;
+          frag.appendChild(div);
+        }
+
+        for (const sec of sById.values()) {
+          const isVisible = vis.visibleSecondaries.has(sec.id);
+          const isSelected = state.selectedId === sec.id;
+          const isDimmed =
+            vis.hasFocus && !isSelected && !vis.highlightedSecondaries.has(sec.id);
+
+          const div = document.createElement('div');
+          div.className =
+            'node-secondary' +
+            (isSelected ? ' selected' : '') +
+            (isDimmed ? ' dimmed' : '') +
+            (!isVisible ? ' hidden-node' : '');
+          div.dataset.nodeId = sec.id;
+          div.style.left = `${sec.x}px`;
+          div.style.top = `${sec.y}px`;
+          div.style.borderColor = sec.color || '#10b981';
+
+          if (isSelected) {
+            div.style.boxShadow = `0 0 0 4px ${sec.color || '#10b981'}33, 0 6px 16px rgba(15, 23, 42, 0.16)`;
+          }
+
+          div.innerHTML = `
+            <div class="node-secondary-row">
+              <span class="node-secondary-dot" style="background: ${sec.color || '#10b981'};"></span>
+              <span class="node-secondary-label">${escapeHtml(sec.label)}</span>
+            </div>
+            ${state.showReadings && sec.reading ? `<div class="node-secondary-reading">${escapeHtml(sec.reading)}</div>` : ''}
+          `;
+          frag.appendChild(div);
+        }
+
+        elNodesLayer.innerHTML = '';
+        elNodesLayer.appendChild(frag);
+      }
+
+      // =====================================================================
+      // INSPECTOR PANEL (IME-SAFE & BILINGUAL)
+      // =====================================================================
+      function bindImeSafeField(inputEl, onCommit) {
+        if (!inputEl) return;
+        let composing = false;
+        inputEl.addEventListener('compositionstart', () => {
+          composing = true;
+        });
+        inputEl.addEventListener('compositionend', (e) => {
+          composing = false;
+          onCommit(e.target.value, true);
+        });
+        inputEl.addEventListener('input', (e) => {
+          if (composing || e.isComposing) return;
+          onCommit(e.target.value, false);
+        });
+      }
+
+      function inferPrimaryReadings(primaryId) {
+        const { pById, sById } = buildGraphIndex();
+        const p = pById.get(primaryId);
+        if (!p) return { onHints: [], kunHints: [] };
+        const onSet = new Set();
+        const kunSet = new Set();
+
+        for (const c of p.connections) {
+          const sid = c.id || c.refId;
+          const sec = sById.get(sid);
+          if (!sec || !sec.reading) continue;
+          const chars = [...sec.label];
+          const hasKana = chars.some((ch) => /[\u3041-\u309f]/.test(ch));
+          if (hasKana && chars[0] === p.label) {
+            kunSet.add(sec.reading);
+          } else if (!hasKana && chars.length === 2) {
+            const idx = chars.indexOf(p.label);
+            const half = Math.ceil(sec.reading.length / 2);
+            const slice = idx === 0 ? sec.reading.slice(0, half) : sec.reading.slice(half);
+            if (slice) {
+              const kata = slice.replace(/[\u3041-\u3096]/g, (ch) =>
+                String.fromCharCode(ch.charCodeAt(0) + 0x60)
+              );
+              onSet.add(kata);
+            }
+          }
+        }
+        return { onHints: [...onSet].slice(0, 4), kunHints: [...kunSet].slice(0, 4) };
+      }
+
+      function getDictionaryEntries(label, isPrimary) {
+        const q = encodeURIComponent(label);
+        if (isPrimary) {
+          return [
+            { name: '漢字ペディア', url: `https://www.kanjipedia.jp/search?k=${q}&kt=1&sk=leftHand` },
+            { name: '漢字辞典オンライン', url: `https://kanji.jitenon.jp/cat/search.php?getdata=${q}` },
+            { name: 'Weblio漢字', url: `https://www.weblio.jp/content/${q}` },
+            { name: 'コトバンク', url: `https://kotobank.jp/gs/?q=${q}` },
+            { name: 'Jisho', url: `https://jisho.org/search/${q}%20%23kanji` }
+          ];
+        }
+        // goo辞書 removed as requested
+        return [
+          { name: 'Weblio国語辞典', url: `https://www.weblio.jp/content/${q}` },
+          { name: 'コトバンク', url: `https://kotobank.jp/gs/?q=${q}` },
+          { name: 'Jisho', url: `https://jisho.org/search/${q}` }
+        ];
+      }
+
+      function renderInspector() {
+        if (!state.selectedId) {
+          elInspector.classList.remove('open');
+          return;
+        }
+
+        const { pById, sById, sParents } = buildGraphIndex();
+        const isPrimary = pById.has(state.selectedId);
+        const node = isPrimary ? pById.get(state.selectedId) : sById.get(state.selectedId);
+
+        if (!node) {
+          state.selectedId = null;
+          elInspector.classList.remove('open');
+          return;
+        }
+
+        elInspector.classList.add('open');
+        elInspectorBadge.textContent = isPrimary
+          ? state.lang === 'en' ? 'Primary Kanji' : '親漢字ノード'
+          : state.lang === 'en' ? 'Compound / Vocab' : '熟語・語彙ノード';
+
+        const dictHtml = getDictionaryEntries(node.label, isPrimary)
+          .map(
+            (d) =>
+              `<a class="dict-link" href="${d.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(d.name)} ↗</a>`
+          )
+          .join('');
+
+        const swatchesHtml = PALETTE.map(
+          (col) =>
+            `<button type="button" class="swatch-btn ${node.color === col ? 'active' : ''}" data-set-color="${col}" style="background: ${col};"></button>`
+        ).join('');
+
+        if (isPrimary) {
+          const { onHints, kunHints } = inferPrimaryReadings(node.id);
+          const attachedSecIds = node.connections
+            .map((c) => c.id || c.refId)
+            .filter((sid) => sById.has(sid));
+
+          elInspectorBody.innerHTML = `
+            <div class="field-group">
+              <label class="field-label">${state.lang === 'en' ? 'Kanji Character' : '漢字'}</label>
+              <input type="text" id="insp-label" class="field-input" style="font-size: 20px; font-weight: 800;" value="${escapeHtml(node.label)}">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div class="field-group">
+                <label class="field-label">${state.lang === 'en' ? 'Onyomi' : '音読み'}</label>
+                <input type="text" id="insp-onyomi" class="field-input" value="${escapeHtml(node.onyomi)}">
+                ${onHints.length ? `<div class="chip-row">${onHints.map((h) => `<button type="button" class="hint-chip" data-add-on="${escapeHtml(h)}">＋ ${escapeHtml(h)}</button>`).join('')}</div>` : ''}
+              </div>
+              <div class="field-group">
+                <label class="field-label">${state.lang === 'en' ? 'Kunyomi' : '訓読み'}</label>
+                <input type="text" id="insp-kunyomi" class="field-input" value="${escapeHtml(node.kunyomi)}">
+                ${kunHints.length ? `<div class="chip-row">${kunHints.map((h) => `<button type="button" class="hint-chip" data-add-kun="${escapeHtml(h)}">＋ ${escapeHtml(h)}</button>`).join('')}</div>` : ''}
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">${state.lang === 'en' ? 'Accent Color' : 'ノード色'}</label>
+              <div class="color-swatches">
+                ${swatchesHtml}
+                <input type="color" id="insp-color-picker" value="${node.color || '#3b82f6'}" style="width: 26px; height: 24px; border: none; background: transparent; cursor: pointer;">
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">${state.lang === 'en' ? 'Study Notes' : '学習メモ'}</label>
+              <textarea id="insp-notes" class="field-textarea">${escapeHtml(node.notes)}</textarea>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">${state.lang === 'en' ? `Connected Compounds (${attachedSecIds.length})` : `関連する熟語 (${attachedSecIds.length})`}</label>
+              <div class="chip-row">
+                ${attachedSecIds.length
+                  ? attachedSecIds
+                      .map((sid) => {
+                        const s = sById.get(sid);
+                        return `<button type="button" class="kanji-chip" data-jump-node="${s.id}">${escapeHtml(s.label)}</button>`;
+                      })
+                      .join('')
+                  : `<span style="font-size: 12px; color: var(--text-muted);">なし</span>`}
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">${state.lang === 'en' ? 'Dictionary Lookup' : '辞書で調べる'}</label>
+              <div class="dict-links">${dictHtml}</div>
+            </div>
+
+            <div class="danger-zone">
+              <button type="button" id="btn-delete-node-init" class="tb-btn" style="color: var(--danger); border-color: var(--danger);">🗑 ${state.lang === 'en' ? 'Delete Kanji' : 'この漢字を削除'}</button>
+              <div id="delete-confirm-group" style="display: none; gap: 6px;">
+                <button type="button" id="btn-delete-node-confirm" class="tb-btn" style="background: var(--danger); color: #fff; border-color: var(--danger);">確定</button>
+                <button type="button" id="btn-delete-node-cancel" class="tb-btn">取消</button>
+              </div>
+            </div>
+          `;
+
+          bindImeSafeField(document.getElementById('insp-label'), (val) => {
+            const trimmed = val.trim();
+            if (!trimmed || trimmed === node.label) return;
+            pushHistory();
+            node.label = trimmed;
+            saveData();
+            renderEdgesAndNodes();
+          });
+
+          bindImeSafeField(document.getElementById('insp-onyomi'), (val) => {
+            node.onyomi = val;
+            saveData();
+            renderEdgesAndNodes();
+          });
+
+          bindImeSafeField(document.getElementById('insp-kunyomi'), (val) => {
+            node.kunyomi = val;
+            saveData();
+            renderEdgesAndNodes();
+          });
+
+          bindImeSafeField(document.getElementById('insp-notes'), (val) => {
+            node.notes = val;
+            saveData();
+          });
+
+          elInspectorBody.querySelectorAll('[data-add-on]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              pushHistory();
+              const add = btn.dataset.addOn;
+              node.onyomi = node.onyomi ? `${node.onyomi}・${add}` : add;
+              saveData();
+              renderInspector();
+              renderEdgesAndNodes();
+            });
+          });
+
+          elInspectorBody.querySelectorAll('[data-add-kun]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              pushHistory();
+              const add = btn.dataset.addKun;
+              node.kunyomi = node.kunyomi ? `${node.kunyomi}・${add}` : add;
+              saveData();
+              renderInspector();
+              renderEdgesAndNodes();
+            });
+          });
+        } else {
+          // Secondary Compound Inspector
+          const parentIds = sParents.get(node.id) || [];
+          const parentChipsHtml = parentIds
+            .map((pid) => {
+              const p = pById.get(pid);
+              return p
+                ? `<button type="button" class="kanji-chip" data-jump-node="${p.id}">${escapeHtml(p.label)}</button>`
+                : '';
+            })
+            .join('');
+
+          const tagsHtml = GRAMMAR_TAGS.map((t) => {
+            const active = node.tags && node.tags.includes(t.id);
+            return `<button type="button" class="tag-toggle ${active ? 'active' : ''}" data-toggle-tag="${t.id}">${state.lang === 'en' ? t.en : t.ja}</button>`;
+          }).join('');
+
+          const linkedRowsHtml = node.linksTo
+            .map((link) => {
+              const target = sById.get(link.targetId);
+              if (!target) return '';
+              const optionsHtml = Object.entries(LINK_TYPES)
+                .map(
+                  ([k, meta]) =>
+                    `<option value="${k}" ${link.type === k ? 'selected' : ''}>${meta.short}·${state.lang === 'en' ? meta.en : meta.ja}</option>`
+                )
+                .join('');
+              return `
+                <div class="checklist-item">
+                  <span data-jump-node="${target.id}" style="font-weight: 700; cursor: pointer;">${escapeHtml(target.label)}</span>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <select class="field-select" data-change-link-type="${target.id}" style="padding: 2px 6px; font-size: 11px; width: auto;">${optionsHtml}</select>
+                    <button type="button" class="tb-btn" data-unlink-id="${target.id}" style="padding: 2px 6px;">✕</button>
+                  </div>
+                </div>
+              `;
+            })
+            .join('');
+
+          const newLinkTypeOptions = Object.entries(LINK_TYPES)
+            .map(
+              ([k, meta]) =>
+                `<option value="${k}">${meta.short}·${state.lang === 'en' ? meta.en : meta.ja}</option>`
+            )
+            .join('');
+
+          elInspectorBody.innerHTML = `
+            <div class="field-group">
+              <label class="field-label">${state.lang === 'en' ? 'Compound / Word' : '熟語・単語'}</label>
+              <input type="text" id="insp-label" class="field-input" style="font-size: 18px; font-weight: 800;" value="${escapeHtml(node.label)}">
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">${state.lang === 'en' ? 'Reading' : '読み (ひらがな)'}</label>
+              <input type="text" id="insp-reading" class="field-input" value="${escapeHtml(node.reading)}">
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">
+                <span>${state.lang === 'en' ? 'Constituent Kanji' : '構成親漢字'}</span>
+                <button type="button" id="btn-recenter-compound" class="hint-chip">${state.lang === 'en' ? 'Center between parents' : '親漢字の中心へ再配置'}</button>
+              </label>
+              <div class="chip-row">${parentChipsHtml || '<span style="font-size: 12px; color: var(--text-muted);">未接続</span>'}</div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">${state.lang === 'en' ? 'Grammar & Usage Tags' : '品詞・用法タグ'}</label>
+              <div class="chip-row">${tagsHtml}</div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">${state.lang === 'en' ? 'Accent Color' : 'ノード色'}</label>
+              <div class="color-swatches">
+                ${swatchesHtml}
+                <input type="color" id="insp-color-picker" value="${node.color || '#10b981'}" style="width: 26px; height: 24px; border: none; background: transparent; cursor: pointer;">
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">${state.lang === 'en' ? 'Notes' : 'メモ'}</label>
+              <textarea id="insp-notes" class="field-textarea">${escapeHtml(node.notes)}</textarea>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">${state.lang === 'en' ? 'Related Word Links' : '関連語リンク (対義語・類義語・派生語)'}</label>
+              ${linkedRowsHtml ? `<div class="checklist-box" style="margin-bottom: 6px;">${linkedRowsHtml}</div>` : ''}
+              <div style="display: flex; gap: 6px; margin-bottom: 4px;">
+                <input type="text" id="inspector-link-search" class="field-input" placeholder="${state.lang === 'en' ? 'Filter words to link...' : 'リンク先を検索...'}" style="flex: 1;">
+                <select id="inspector-new-link-type" class="field-select" style="width: auto; font-size: 11px;">${newLinkTypeOptions}</select>
+              </div>
+              <div id="inspector-link-results" class="checklist-box"></div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label">${state.lang === 'en' ? 'Dictionary Lookup' : '辞書で調べる'}</label>
+              <div class="dict-links">${dictHtml}</div>
+            </div>
+
+            <div class="danger-zone">
+              <button type="button" id="btn-delete-node-init" class="tb-btn" style="color: var(--danger); border-color: var(--danger);">🗑 ${state.lang === 'en' ? 'Delete Compound' : 'この熟語を削除'}</button>
+              <div id="delete-confirm-group" style="display: none; gap: 6px;">
+                <button type="button" id="btn-delete-node-confirm" class="tb-btn" style="background: var(--danger); color: #fff; border-color: var(--danger);">確定</button>
+                <button type="button" id="btn-delete-node-cancel" class="tb-btn">取消</button>
+              </div>
+            </div>
+          `;
+
+          bindImeSafeField(document.getElementById('insp-label'), (val, committed) => {
+            const trimmed = val.trim();
+            if (!trimmed || trimmed === node.label) return;
+            pushHistory();
+            node.label = trimmed;
+            if (committed) {
+              reconcileSecondaryNode(node);
+            }
+            saveData();
+            renderEdgesAndNodes();
+          });
+
+          bindImeSafeField(document.getElementById('insp-reading'), (val) => {
+            node.reading = val;
+            saveData();
+            renderEdgesAndNodes();
+          });
+
+          bindImeSafeField(document.getElementById('insp-notes'), (val) => {
+            node.notes = val;
+            saveData();
+          });
+
+          document.getElementById('btn-recenter-compound')?.addEventListener('click', () => {
+            const parents = (sParents.get(node.id) || []).map((pid) => pById.get(pid)).filter(Boolean);
+            if (!parents.length) return;
+            pushHistory();
+            const avgX = parents.reduce((acc, p) => acc + p.x, 0) / parents.length;
+            const avgY = parents.reduce((acc, p) => acc + p.y, 0) / parents.length + (parents.length === 1 ? 110 : 0);
+            const pos = findFreePosition(avgX, avgY, node.id, 95);
+            node.x = pos.x;
+            node.y = pos.y;
+            saveData();
+            renderEdgesAndNodes();
+            focusCameraOnWorldPoint(node.x, node.y);
+          });
+
+          elInspectorBody.querySelectorAll('[data-toggle-tag]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              pushHistory();
+              const tid = btn.dataset.toggleTag;
+              if (!Array.isArray(node.tags)) node.tags = [];
+              if (node.tags.includes(tid)) {
+                node.tags = node.tags.filter((x) => x !== tid);
+              } else {
+                node.tags.push(tid);
+              }
+              saveData();
+              renderInspector();
+              renderAll();
+            });
+          });
+
+          elInspectorBody.querySelectorAll('[data-change-link-type]').forEach((sel) => {
+            sel.addEventListener('change', () => {
+              pushHistory();
+              const targetId = sel.dataset.changeLinkType;
+              const newType = sel.value;
+              const entry = node.linksTo.find((l) => l.targetId === targetId);
+              if (entry) entry.type = newType;
+              const other = sById.get(targetId);
+              const reverse = other?.linksTo.find((l) => l.targetId === node.id);
+              if (reverse) reverse.type = newType;
+              saveData();
+              renderEdgesAndNodes();
+            });
+          });
+
+          elInspectorBody.querySelectorAll('[data-unlink-id]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              pushHistory();
+              const targetId = btn.dataset.unlinkId;
+              node.linksTo = node.linksTo.filter((l) => l.targetId !== targetId);
+              const other = sById.get(targetId);
+              if (other) {
+                other.linksTo = other.linksTo.filter((l) => l.targetId !== node.id);
+              }
+              saveData();
+              renderInspector();
+              renderEdgesAndNodes();
+            });
+          });
+
+          // Decoupled IME-safe search for Related Word Links
+          const linkSearchInput = document.getElementById('inspector-link-search');
+          const linkResultsBox = document.getElementById('inspector-link-results');
+          let isLinkSearchComposing = false;
+
+          function updateInspectorLinkResults() {
+            const rawFilter = linkSearchInput ? linkSearchInput.value.trim() : '';
+            const filterHira = toHiragana(rawFilter.toLowerCase());
+            const existingIds = new Set(node.linksTo.map((l) => l.targetId));
+            const myKanji = new Set(extractKanji(node.label));
+
+            const candidates = [...sById.values()]
+              .filter((other) => other.id !== node.id && !existingIds.has(other.id))
+              .filter((other) => {
+                if (!filterHira) return true;
+                return (
+                  other.label.toLowerCase().includes(filterHira) ||
+                  toHiragana(other.reading).toLowerCase().includes(filterHira)
+                );
+              })
+              .sort((a, b) => {
+                const aShared = extractKanji(a.label).some((k) => myKanji.has(k)) ? 0 : 1;
+                const bShared = extractKanji(b.label).some((k) => myKanji.has(k)) ? 0 : 1;
+                return aShared - bShared;
+              })
+              .slice(0, 25);
+
+            if (!candidates.length) {
+              linkResultsBox.innerHTML = `<div style="padding: 6px; font-size: 11px; color: var(--text-muted);">候補なし</div>`;
+              return;
+            }
+
+            linkResultsBox.innerHTML = candidates
+              .map((c) => {
+                const shared = extractKanji(c.label).some((k) => myKanji.has(k));
+                return `
+                  <div class="checklist-item" data-add-link-target="${c.id}">
+                    <span><strong>${escapeHtml(c.label)}</strong> <span style="color: var(--text-muted); font-size: 11px;">${escapeHtml(c.reading)}</span></span>
+                    <span style="font-size: 11px; color: var(--accent-primary); font-weight: 700;">${shared ? '同漢字 · ＋' : '＋'}</span>
+                  </div>
+                `;
+              })
+              .join('');
+
+            linkResultsBox.querySelectorAll('[data-add-link-target]').forEach((row) => {
+              row.addEventListener('click', () => {
+                pushHistory();
+                const targetId = row.dataset.addLinkTarget;
+                const chosenType = document.getElementById('inspector-new-link-type')?.value || 'related';
+                if (!node.linksTo.some((l) => l.targetId === targetId)) {
+                  node.linksTo.push({ targetId, type: chosenType });
+                }
+                const other = sById.get(targetId);
+                if (other && !other.linksTo.some((l) => l.targetId === node.id)) {
+                  other.linksTo.push({ targetId: node.id, type: chosenType });
+                }
+                saveData();
+                renderInspector();
+                renderEdgesAndNodes();
+              });
+            });
+          }
+
+          if (linkSearchInput) {
+            linkSearchInput.addEventListener('compositionstart', () => {
+              isLinkSearchComposing = true;
+            });
+            linkSearchInput.addEventListener('compositionend', () => {
+              isLinkSearchComposing = false;
+              updateInspectorLinkResults();
+            });
+            linkSearchInput.addEventListener('input', (e) => {
+              if (isLinkSearchComposing || e.isComposing) return;
+              updateInspectorLinkResults();
+            });
+          }
+          updateInspectorLinkResults();
+        }
+
+        // Shared Inspector Listeners (Color, Jump-to-Node, Delete Confirmation)
+        elInspectorBody.querySelectorAll('[data-set-color]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            pushHistory();
+            node.color = btn.dataset.setColor;
+            saveData();
+            renderInspector();
+            renderEdgesAndNodes();
+          });
+        });
+
+        document.getElementById('insp-color-picker')?.addEventListener('change', (e) => {
+          pushHistory();
+          node.color = e.target.value;
+          saveData();
+          renderInspector();
+          renderEdgesAndNodes();
+        });
+
+        elInspectorBody.querySelectorAll('[data-jump-node]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const targetId = btn.dataset.jumpNode;
+            selectNodeAndCenter(targetId);
+          });
+        });
+
+        const delInit = document.getElementById('btn-delete-node-init');
+        const delGroup = document.getElementById('delete-confirm-group');
+        const delConfirm = document.getElementById('btn-delete-node-confirm');
+        const delCancel = document.getElementById('btn-delete-node-cancel');
+
+        delInit?.addEventListener('click', () => {
+          delInit.style.display = 'none';
+          delGroup.style.display = 'flex';
+        });
+        delCancel?.addEventListener('click', () => {
+          delGroup.style.display = 'none';
+          delInit.style.display = 'inline-flex';
+        });
+        delConfirm?.addEventListener('click', () => {
+          deleteNode(node.id);
+        });
+      }
+
+      function deleteNode(nodeId) {
+        pushHistory();
+        const idx = state.data.primaryNodes.findIndex((p) => p.id === nodeId);
+        if (idx !== -1) {
+          // Promote any owned secondary compounds that still have other parents
+          const removedPrimary = state.data.primaryNodes[idx];
+          const ownedSecondaries = removedPrimary.connections.filter((c) => c && c.id);
+          state.data.primaryNodes.splice(idx, 1);
+
+          for (const sec of ownedSecondaries) {
+            const nextParent = state.data.primaryNodes.find((p) =>
+              p.connections.some((c) => c.refId === sec.id)
+            );
+            if (nextParent) {
+              nextParent.connections = nextParent.connections.filter((c) => c.refId !== sec.id);
+              nextParent.connections.push(sec);
+            }
+          }
+        } else {
+          // Delete secondary compound and clean up all refId & linksTo pointers
+          for (const p of state.data.primaryNodes) {
+            p.connections = p.connections.filter(
+              (c) => c.id !== nodeId && c.refId !== nodeId
+            );
+            for (const c of p.connections) {
+              if (c && c.id && Array.isArray(c.linksTo)) {
+                c.linksTo = c.linksTo.filter((l) => l.targetId !== nodeId);
+              }
+            }
+          }
+        }
+
+        if (state.selectedId === nodeId) {
+          state.selectedId = null;
+        }
+        saveData();
+        renderAll();
+        showToast(state.lang === 'en' ? 'Node deleted' : 'ノードを削除しました');
+      }
+
+      function selectNodeAndCenter(nodeId) {
+        const { pById, sById } = buildGraphIndex();
+        const target = pById.get(nodeId) || sById.get(nodeId);
+        if (!target) return;
+        state.selectedId = target.id;
+        renderAll();
+        focusCameraOnWorldPoint(target.x, target.y, 0.95);
+      }
+
+      function renderAll() {
+        renderFilterBar();
+        renderEdgesAndNodes();
+        renderInspector();
+      }
+
+      // =====================================================================
+      // POINTER INTERACTION: PAN, PINCH ZOOM, NODE DRAG & LINK MODE
+      // =====================================================================
+      let pointerMode = null; // 'pan' | 'drag' | 'pinch'
+      let dragNode = null;
+      let dragStartWorld = { x: 0, y: 0 };
+      let dragMoved = false;
+      let panStart = { x: 0, y: 0 };
+      const activePointers = new Map();
+      let initialPinchDist = 0;
+      let initialPinchScale = 1;
+
+      elCanvasContainer.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (activePointers.size === 2) {
+          pointerMode = 'pinch';
+          const pts = [...activePointers.values()];
+          initialPinchDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+          initialPinchScale = state.camera.scale;
+          return;
+        }
+
+        const nodeEl = e.target.closest('[data-node-id]');
+        if (nodeEl) {
+          const nid = nodeEl.dataset.nodeId;
+          const { pById, sById } = buildGraphIndex();
+          dragNode = pById.get(nid) || sById.get(nid);
+          if (!dragNode) return;
+          pointerMode = 'drag';
+          dragMoved = false;
+          dragStartWorld = {
+            x: e.clientX / state.camera.scale - dragNode.x,
+            y: e.clientY / state.camera.scale - dragNode.y
+          };
+          elCanvasContainer.setPointerCapture(e.pointerId);
+        } else {
+          pointerMode = 'pan';
+          dragMoved = false;
+          panStart = {
+            x: e.clientX - state.camera.x,
+            y: e.clientY - state.camera.y
+          };
+          elCanvasContainer.classList.add('grabbing');
+          elCanvasContainer.setPointerCapture(e.pointerId);
+        }
+      });
+
+      elCanvasContainer.addEventListener('pointermove', (e) => {
+        if (!activePointers.has(e.pointerId)) return;
+        activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (pointerMode === 'pinch' && activePointers.size === 2) {
+          const pts = [...activePointers.values()];
+          const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+          if (initialPinchDist > 10) {
+            const midX = (pts[0].x + pts[1].x) / 2;
+            const midY = (pts[0].y + pts[1].y) / 2 - 90;
+            const newScale = Math.min(2.8, Math.max(0.2, initialPinchScale * (dist / initialPinchDist)));
+            const ratio = newScale / state.camera.scale;
+            state.camera.x = midX - (midX - state.camera.x) * ratio;
+            state.camera.y = midY - (midY - state.camera.y) * ratio;
+            state.camera.scale = newScale;
+            applyCameraTransform(false);
+          }
+          return;
+        }
+
+        if (pointerMode === 'drag' && dragNode) {
+          if (!dragMoved) {
+            pushHistory();
+            dragMoved = true;
+          }
+          dragNode.x = Math.round(e.clientX / state.camera.scale - dragStartWorld.x);
+          dragNode.y = Math.round(e.clientY / state.camera.scale - dragStartWorld.y);
+          renderEdgesAndNodes();
+        } else if (pointerMode === 'pan') {
+          const nx = e.clientX - panStart.x;
+          const ny = e.clientY - panStart.y;
+          if (Math.hypot(nx - state.camera.x, ny - state.camera.y) > 4) {
+            dragMoved = true;
+          }
+          state.camera.x = nx;
+          state.camera.y = ny;
+          applyCameraTransform(false);
+        }
+      });
+
+      function handleNodeTap(nid) {
+        if (state.linkMode) {
+          const { sById } = buildGraphIndex();
+          if (!sById.has(nid)) {
+            showToast(state.lang === 'en' ? 'Select a compound node to link' : '熟語ノードを選択してください');
+            return;
+          }
+          if (!state.linkSourceId) {
+            state.linkSourceId = nid;
+            state.selectedId = nid;
+            document.getElementById('link-mode-status').textContent =
+              `「${sById.get(nid).label}」→ 2つ目の熟語を選択`;
+            renderAll();
+          } else if (state.linkSourceId !== nid) {
+            pushHistory();
+            const src = sById.get(state.linkSourceId);
+            const dst = sById.get(nid);
+            const ltype = state.activeLinkType;
+            src.linksTo = src.linksTo.filter((l) => l.targetId !== dst.id);
+            src.linksTo.push({ targetId: dst.id, type: ltype });
+            dst.linksTo = dst.linksTo.filter((l) => l.targetId !== src.id);
+            dst.linksTo.push({ targetId: src.id, type: ltype });
+            saveData();
+            state.linkSourceId = null;
+            state.selectedId = dst.id;
+            document.getElementById('link-mode-status').textContent = '1つ目の熟語を選択';
+            renderAll();
+            showToast(`${src.label} ↔ ${dst.label} を接続しました`);
+          }
+          return;
+        }
+
+        state.selectedId = state.selectedId === nid ? null : nid;
+        renderAll();
+      }
+
+      function endPointer(e) {
+        activePointers.delete(e.pointerId);
+        elCanvasContainer.classList.remove('grabbing');
+
+        if (pointerMode === 'drag' && dragNode) {
+          if (dragMoved) {
+            saveData();
+          } else {
+            handleNodeTap(dragNode.id);
+          }
+        } else if (pointerMode === 'pan' && !dragMoved) {
+          if (state.selectedId) {
+            state.selectedId = null;
+            renderAll();
+          }
+        }
+
+        if (activePointers.size === 0) {
+          pointerMode = null;
+          dragNode = null;
+        }
+      }
+
+      elCanvasContainer.addEventListener('pointerup', endPointer);
+      elCanvasContainer.addEventListener('pointercancel', endPointer);
+
+      // Mouse wheel zoom centered on cursor
+      elCanvasContainer.addEventListener(
+        'wheel',
+        (e) => {
+          e.preventDefault();
+          const rect = elCanvasContainer.getBoundingClientRect();
+          const cx = e.clientX - rect.left;
+          const cy = e.clientY - rect.top;
+          const factor = e.deltaY < 0 ? 1.12 : 0.89;
+          const newScale = Math.min(2.8, Math.max(0.2, state.camera.scale * factor));
+          const ratio = newScale / state.camera.scale;
+          state.camera.x = cx - (cx - state.camera.x) * ratio;
+          state.camera.y = cy - (cy - state.camera.y) * ratio;
+          state.camera.scale = newScale;
+          applyCameraTransform(false);
+        },
+        { passive: false }
+      );
+
+      // =====================================================================
+      // MODALS & TOOLBAR CONTROLS
+      // =====================================================================
+      function openModal(id) {
+        document.getElementById(id)?.classList.add('open');
+      }
+      function closeModal(id) {
+        document.getElementById(id)?.classList.remove('open');
+      }
+
+      document.querySelectorAll('[data-close-modal]').forEach((btn) => {
+        btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
+      });
+
+      // Add Primary Kanji Modal
+      document.getElementById('btn-open-add-primary').addEventListener('click', () => {
+        document.getElementById('new-primary-label').value = '';
+        document.getElementById('new-primary-onyomi').value = '';
+        document.getElementById('new-primary-kunyomi').value = '';
+        document.getElementById('new-primary-notes').value = '';
+        openModal('modal-add-primary');
+        setTimeout(() => document.getElementById('new-primary-label').focus(), 50);
+      });
+
+      document.getElementById('btn-confirm-add-primary').addEventListener('click', () => {
+        const label = document.getElementById('new-primary-label').value.trim();
+        if (!label) return;
+        const { pByLabel } = buildGraphIndex();
+        if (pByLabel.has(label)) {
+          closeModal('modal-add-primary');
+          selectNodeAndCenter(pByLabel.get(label).id);
+          showToast(`「${label}」は既に登録されています`);
+          return;
+        }
+        pushHistory();
+        const center = getViewportCenterWorld();
+        const pos = findFreePosition(center.x, center.y);
+        const newPrimary = {
+          id: genId('p'),
+          label,
+          onyomi: document.getElementById('new-primary-onyomi').value.trim(),
+          kunyomi: document.getElementById('new-primary-kunyomi').value.trim(),
+          color: '#3b82f6',
+          x: pos.x,
+          y: pos.y,
+          notes: document.getElementById('new-primary-notes').value.trim(),
+          connections: []
+        };
+        state.data.primaryNodes.push(newPrimary);
+        if (state.autoLink) {
+          reconcileAllNodes();
+        }
+        saveData();
+        closeModal('modal-add-primary');
+        selectNodeAndCenter(newPrimary.id);
+        showToast(`親漢字「${label}」を追加しました`);
+      });
+
+      // Add Secondary Compound Modal
+      let modalSelectedTags = new Set();
+      function renderModalTagPills() {
+        const wrap = document.getElementById('new-sec-tags');
+        wrap.innerHTML = GRAMMAR_TAGS.map(
+          (t) =>
+            `<button type="button" class="tag-toggle ${modalSelectedTags.has(t.id) ? 'active' : ''}" data-mtag="${t.id}">${state.lang === 'en' ? t.en : t.ja}</button>`
+        ).join('');
+        wrap.querySelectorAll('[data-mtag]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const id = btn.dataset.mtag;
+            if (modalSelectedTags.has(id)) modalSelectedTags.delete(id);
+            else modalSelectedTags.add(id);
+            renderModalTagPills();
+          });
+        });
+      }
+
+      document.getElementById('new-sec-label').addEventListener('input', (e) => {
+        const chars = extractKanji(e.target.value);
+        const { pByLabel } = buildGraphIndex();
+        const preview = document.getElementById('new-sec-kanji-preview');
+        preview.innerHTML = chars
+          .map((ch) => {
+            const exists = pByLabel.has(ch);
+            return `<span class="kanji-chip" style="font-size: 11px; padding: 2px 7px;">${escapeHtml(ch)} · ${exists ? '登録済' : '新規作成'}</span>`;
+          })
+          .join('');
+      });
+
+      document.getElementById('btn-open-add-secondary').addEventListener('click', () => {
+        document.getElementById('new-sec-label').value = '';
+        document.getElementById('new-sec-reading').value = '';
+        document.getElementById('new-sec-notes').value = '';
+        document.getElementById('new-sec-kanji-preview').innerHTML = '';
+        modalSelectedTags = new Set();
+        renderModalTagPills();
+        openModal('modal-add-secondary');
+        setTimeout(() => document.getElementById('new-sec-label').focus(), 50);
+      });
+
+      document.getElementById('btn-confirm-add-secondary').addEventListener('click', () => {
+        const label = document.getElementById('new-sec-label').value.trim();
+        if (!label) return;
+        pushHistory();
+
+        const newSec = {
+          id: genId('s'),
+          label,
+          reading: document.getElementById('new-sec-reading').value.trim(),
+          color: '#10b981',
+          x: 0,
+          y: 0,
+          linksTo: [],
+          tags: [...modalSelectedTags],
+          notes: document.getElementById('new-sec-notes').value.trim()
+        };
+
+        const preferredPrimaryId = state.data.primaryNodes.some((p) => p.id === state.selectedId)
+          ? state.selectedId
+          : null;
+
+        reconcileSecondaryNode(newSec, preferredPrimaryId);
+
+        // If still unattached (e.g. kana-only word or autoLink off), attach to selected or first primary
+        const { sOwner, pById, sParents } = buildGraphIndex();
+        if (!sOwner.has(newSec.id)) {
+          let fallbackPrimary =
+            (preferredPrimaryId && pById.get(preferredPrimaryId)) ||
+            state.data.primaryNodes[0];
+          if (!fallbackPrimary) {
+            const c = getViewportCenterWorld();
+            fallbackPrimary = {
+              id: genId('p'),
+              label: [...label][0] || '語',
+              onyomi: '',
+              kunyomi: '',
+              color: '#3b82f6',
+              x: c.x,
+              y: c.y,
+              notes: '',
+              connections: []
+            };
+            state.data.primaryNodes.push(fallbackPrimary);
+          }
+          fallbackPrimary.connections.push(newSec);
+        }
+
+        // Compute centroid placement from matched parents
+        const updated = buildGraphIndex();
+        const parents = (updated.sParents.get(newSec.id) || [])
+          .map((pid) => updated.pById.get(pid))
+          .filter(Boolean);
+        const center = getViewportCenterWorld();
+        const baseX = parents.length
+          ? parents.reduce((acc, p) => acc + p.x, 0) / parents.length
+          : center.x;
+        const baseY = parents.length
+          ? parents.reduce((acc, p) => acc + p.y, 0) / parents.length + (parents.length === 1 ? 110 : 0)
+          : center.y;
+        const pos = findFreePosition(baseX, baseY, newSec.id, 95);
+        newSec.x = pos.x;
+        newSec.y = pos.y;
+
+        saveData();
+        closeModal('modal-add-secondary');
+        selectNodeAndCenter(newSec.id);
+        showToast(`熟語「${label}」を追加しました`);
+      });
+
+      // Toolbar Toggles
+      document.getElementById('btn-toggle-reveal').addEventListener('click', (e) => {
+        state.revealAll = !state.revealAll;
+        e.currentTarget.classList.toggle('active', state.revealAll);
+        e.currentTarget.textContent = state.revealAll
+          ? state.lang === 'en' ? 'Reveal All' : '全体表示'
+          : state.lang === 'en' ? 'Focus Mode' : '集中表示';
+        renderEdgesAndNodes();
+      });
+
+      document.getElementById('btn-toggle-readings').addEventListener('click', (e) => {
+        state.showReadings = !state.showReadings;
+        e.currentTarget.classList.toggle('active', state.showReadings);
+        e.currentTarget.textContent = state.showReadings
+          ? state.lang === 'en' ? 'Readings On' : '読み表示'
+          : state.lang === 'en' ? 'Readings Off' : '読み非表示';
+        renderEdgesAndNodes();
+      });
+
+      document.getElementById('btn-toggle-autolink').addEventListener('click', (e) => {
+        state.autoLink = !state.autoLink;
+        e.currentTarget.classList.toggle('active', state.autoLink);
+      });
+
+      document.getElementById('btn-toggle-autocreate').addEventListener('click', (e) => {
+        state.autoCreatePrimary = !state.autoCreatePrimary;
+        e.currentTarget.classList.toggle('active', state.autoCreatePrimary);
+      });
+
+      document.getElementById('btn-auto-arrange').addEventListener('click', autoArrangeClusters);
+      document.getElementById('btn-undo').addEventListener('click', undo);
+      document.getElementById('btn-redo').addEventListener('click', redo);
+
+      // Link Mode Controls
+      function renderLinkModeTypes() {
+        const wrap = document.getElementById('link-mode-types');
+        wrap.innerHTML = Object.entries(LINK_TYPES)
+          .map(([k, meta]) => {
+            const active = state.activeLinkType === k;
+            return `<button type="button" class="link-type-chip ${active ? 'active' : ''}" data-lm-type="${k}" style="${active ? `background: ${meta.color};` : ''}">${meta.short}·${state.lang === 'en' ? meta.en : meta.ja}</button>`;
+          })
+          .join('');
+        wrap.querySelectorAll('[data-lm-type]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            state.activeLinkType = btn.dataset.lmType;
+            renderLinkModeTypes();
+          });
+        });
+      }
+
+      function setLinkMode(enabled) {
+        state.linkMode = enabled;
+        state.linkSourceId = null;
+        document.getElementById('btn-toggle-link-mode').classList.toggle('link-active', enabled);
+        const bar = document.getElementById('link-mode-bar');
+        bar.classList.toggle('visible', enabled);
+        if (enabled) {
+          if (!state.revealAll) {
+            state.revealAll = true;
+            document.getElementById('btn-toggle-reveal').classList.add('active');
+            document.getElementById('btn-toggle-reveal').textContent =
+              state.lang === 'en' ? 'Reveal All' : '全体表示';
+          }
+          document.getElementById('link-mode-status').textContent = '1つ目の熟語を選択';
+          renderLinkModeTypes();
+          renderEdgesAndNodes();
+        }
+      }
+
+      document.getElementById('btn-toggle-link-mode').addEventListener('click', () => {
+        setLinkMode(!state.linkMode);
+      });
+      document.getElementById('btn-exit-link-mode').addEventListener('click', () => {
+        setLinkMode(false);
+      });
+
+      // Map Search (IME-safe)
+      bindImeSafeField(document.getElementById('map-search-input'), (val) => {
+        state.searchQuery = val;
+        renderEdgesAndNodes();
+      });
+
+      // Zoom Buttons
+      document.getElementById('btn-zoom-in').addEventListener('click', () => {
+        state.camera.scale = Math.min(2.8, state.camera.scale * 1.2);
+        applyCameraTransform(true);
+      });
+      document.getElementById('btn-zoom-out').addEventListener('click', () => {
+        state.camera.scale = Math.max(0.2, state.camera.scale * 0.82);
+        applyCameraTransform(true);
+      });
+      document.getElementById('zoom-level-text').addEventListener('click', () => {
+        const rect = elCanvasContainer.getBoundingClientRect();
+        state.camera = { x: rect.width / 2, y: rect.height / 2, scale: 1 };
+        applyCameraTransform(true);
+      });
+      document.getElementById('btn-zoom-fit').addEventListener('click', fitCameraToNodes);
+
+      document.getElementById('btn-close-inspector').addEventListener('click', () => {
+        state.selectedId = null;
+        renderAll();
+      });
+
+      // JSON Modal Actions
+      document.getElementById('btn-open-json').addEventListener('click', () => {
+        document.getElementById('json-editor-textarea').value = JSON.stringify(state.data, null, 2);
+        openModal('modal-json');
+      });
+
+      document.getElementById('btn-export-json').addEventListener('click', () => {
+        const blob = new Blob([JSON.stringify(state.data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        a.href = url;
+        a.download = `kanji_nexus_${dateStr}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+
+      document.getElementById('input-import-json-file').addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(String(reader.result));
+            pushHistory();
+            state.data = normalizeDataSchema(parsed);
+            state.selectedId = null;
+            saveData();
+            closeModal('modal-json');
+            renderAll();
+            fitCameraToNodes();
+            showToast('JSONファイルを読み込みました');
+          } catch (err) {
+            alert('JSONの解析に失敗しました: ' + err.message);
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      });
+
+      document.getElementById('btn-apply-json-text').addEventListener('click', () => {
+        try {
+          const parsed = JSON.parse(document.getElementById('json-editor-textarea').value);
+          pushHistory();
+          state.data = normalizeDataSchema(parsed);
+          state.selectedId = null;
+          saveData();
+          closeModal('modal-json');
+          renderAll();
+          showToast('JSONデータを適用しました');
+        } catch (err) {
+          alert('JSON構文エラー: ' + err.message);
+        }
+      });
+
+      document.getElementById('btn-rescan-links').addEventListener('click', () => {
+        pushHistory();
+        reconcileAllNodes();
+        saveData();
+        document.getElementById('json-editor-textarea').value = JSON.stringify(state.data, null, 2);
+        renderAll();
+        showToast('全ノードの構成漢字・派生語リンクを再実行しました');
+      });
+
+      document.getElementById('btn-reset-starter').addEventListener('click', () => {
+        pushHistory();
+        state.data = normalizeDataSchema(STARTER_DATA);
+        state.selectedId = null;
+        saveData();
+        closeModal('modal-json');
+        renderAll();
+        fitCameraToNodes();
+        showToast('サンプルデータを読み込みました');
+      });
+
+      // Language & Theme Switchers
+      function setLanguage(lang) {
+        state.lang = lang === 'en' ? 'en' : 'ja';
+        document.documentElement.setAttribute('data-lang', state.lang);
+        try {
+          localStorage.setItem(STORAGE_LANG_KEY, state.lang);
+        } catch (_) {}
+        document.getElementById('lang-ja-btn').classList.toggle('active', state.lang === 'ja');
+        document.getElementById('lang-en-btn').classList.toggle('active', state.lang === 'en');
+        if (window.NexusHub && typeof window.NexusHub.refreshUI === 'function') {
+          window.NexusHub.refreshUI();
+        }
+        renderAll();
+      }
+
+      document.getElementById('lang-ja-btn').addEventListener('click', () => setLanguage('ja'));
+      document.getElementById('lang-en-btn').addEventListener('click', () => setLanguage('en'));
+
+      function setTheme(theme) {
+        state.theme = theme === 'dark' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', state.theme);
+        try {
+          localStorage.setItem(STORAGE_THEME_KEY, state.theme);
+        } catch (_) {}
+        if (window.NexusHub && typeof window.NexusHub.refreshUI === 'function') {
+          window.NexusHub.refreshUI();
+        }
+      }
+
+      document.getElementById('btn-toggle-theme').addEventListener('click', () => {
+        setTheme(state.theme === 'dark' ? 'light' : 'dark');
+      });
+
+      // Keyboard Shortcuts (Undo / Redo / Escape)
+      document.addEventListener('keydown', (e) => {
+        const tag = document.activeElement?.tagName;
+        const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+        if ((e.ctrlKey || e.metaKey) && !isTyping) {
+          if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            undo();
+          } else if (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey)) {
+            e.preventDefault();
+            redo();
+          }
+        } else if (e.key === 'Escape') {
+          if (state.linkMode) setLinkMode(false);
+          else if (state.selectedId) {
+            state.selectedId = null;
+            renderAll();
+          }
+        }
+      });
+
+      // Bilingual Hover & Mobile Long-Press Tooltips
+      let longPressTimer = null;
+      function showTooltipFor(target, clientX, clientY) {
+        const el = target?.closest('[data-tip-ja], [data-tip-en]');
+        if (!el) return;
+        const text = state.lang === 'en' ? el.dataset.tipJa : el.dataset.tipEn;
+        if (!text) return;
+        elTooltip.textContent = text;
+        elTooltip.classList.add('visible');
+        const x = Math.min(window.innerWidth - 270, Math.max(8, clientX + 10));
+        const y = Math.min(window.innerHeight - 36, Math.max(8, clientY + 14));
+        elTooltip.style.left = `${x}px`;
+        elTooltip.style.top = `${y}px`;
+      }
+
+      document.addEventListener('mouseover', (e) => {
+        showTooltipFor(e.target, e.clientX, e.clientY);
+      });
+      document.addEventListener('mouseout', (e) => {
+        if (e.target?.closest('[data-tip-ja], [data-tip-en]')) {
+          elTooltip.classList.remove('visible');
+        }
+      });
+      document.addEventListener(
+        'touchstart',
+        (e) => {
+          const t = e.touches[0];
+          if (!t) return;
+          longPressTimer = setTimeout(() => showTooltipFor(e.target, t.clientX, t.clientY), 420);
+        },
+        { passive: true }
+      );
+      document.addEventListener('touchend', () => {
+        clearTimeout(longPressTimer);
+        setTimeout(() => elTooltip.classList.remove('visible'), 900);
+      });
+
+      // =====================================================================
+      // INCOMING FOCUS & INITIALIZATION
+      // =====================================================================
+      function applyIncomingFocus() {
+        const focusId =
+          window.NexusHub && typeof window.NexusHub.consumeFocusId === 'function'
+            ? window.NexusHub.consumeFocusId()
+            : null;
+        if (!focusId) return;
+
+        state.searchQuery = '';
+        state.activeTagFilter = 'all';
+        document.getElementById('map-search-input').value = '';
+        selectNodeAndCenter(focusId);
+      }
+
+      function init() {
+        // Restore theme & language
+        try {
+          const savedTheme = localStorage.getItem(STORAGE_THEME_KEY);
+          if (savedTheme === 'dark' || savedTheme === 'light') setTheme(savedTheme);
+          const savedLang = localStorage.getItem(STORAGE_LANG_KEY);
+          if (savedLang === 'en' || savedLang === 'ja') setLanguage(savedLang);
+        } catch (_) {}
+
+        // Load data via NexusHub bridge (handles both window.name & localStorage)
+        const loaded =
+          window.NexusHub && typeof window.NexusHub.getData === 'function'
+            ? window.NexusHub.getData()
+            : null;
+
+        if (loaded && Array.isArray(loaded.primaryNodes) && loaded.primaryNodes.length > 0) {
+          state.data = normalizeDataSchema(loaded);
+        } else {
+          state.data = normalizeDataSchema(STARTER_DATA);
+          saveData();
+        }
+
+        // Flush state right before NexusHub navigates to another mini-app
+        if (window.NexusHub) {
+          window.NexusHub.onBeforeNavigate(() => saveData());
+          window.NexusHub.onDataChange((updated) => {
+            state.data = normalizeDataSchema(updated);
+            renderAll();
+          });
+        }
+
+        renderAll();
+        fitCameraToNodes();
+        applyIncomingFocus();
+
+        window.addEventListener('hashchange', applyIncomingFocus);
+        window.addEventListener('storage', (e) => {
+          if (e.key === 'kanji_nexus_focus_id' && e.newValue) {
+            applyIncomingFocus();
+          }
+        });
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
