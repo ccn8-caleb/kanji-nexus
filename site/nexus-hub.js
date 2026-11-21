@@ -17,7 +17,7 @@
       en: 'Map',
       descJa: '漢字・熟語ネットワーク図',
       descEn: 'Kanji & Compound Network Map',
-      file: 'kanji_nexus.html',
+      file: 'index.html',
       icon: '🕸️'
     },
     {
