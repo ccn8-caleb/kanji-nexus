@@ -57,9 +57,9 @@
     try {
       const path = global.location.pathname || '';
       const name = path.split('/').pop();
-      return name || 'kanji_nexus.html';
+      return name || 'index.html';
     } catch (_) {
-      return 'kanji_nexus.html';
+      return 'index.html';
     }
   }
 
