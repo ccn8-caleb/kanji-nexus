@@ -6,6 +6,10 @@ on:
   push:
     branches: ["master"]
 
+  # Pull requests run the lint job only (deploy is skipped)
+  pull_request:
+    branches: ["master"]
+
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -22,8 +26,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
+  # Validate the starter data before anything ships
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Lint data
+        run: go run ./tools/kanjinexus lint
+      - name: Check data formatting
+        run: go run ./tools/kanjinexus fmt -check
+
   deploy:
+    needs: lint
+    if: github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
