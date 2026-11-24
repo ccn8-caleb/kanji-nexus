@@ -42,7 +42,10 @@ async function networkFirst(request) {
     (await cache.match(key)) ||
     (isPage ? (await cache.match(new URL('./index.html', self.location).href)) || (await cache.match(new URL('./', self.location).href)) : undefined);
 
-  const network = fetch(request).then((response) => {
+  // Pages always revalidate with the server (bypassing the browser's HTTP cache), so a
+  // new deploy's HTML, which points at new ?v= asset URLs, is picked up immediately.
+  // (A navigate-mode Request can't take init options, hence fetching by URL.)
+  const network = (isPage ? fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(request)).then((response) => {
     if (response.ok) cache.put(key, response.clone());
     return response;
   });

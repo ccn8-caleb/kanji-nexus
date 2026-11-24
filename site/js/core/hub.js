@@ -12,6 +12,7 @@ import { t, tr, isEn, setLang, getLang, toggleTheme, onPrefsChange, applyStaticT
 import { toast, openModal, closeModal, initTooltips } from './ui.js';
 import { registerServiceWorker, installAvailable, promptInstall, onInstallAvailable } from './pwa.js';
 import plugins from '../sync/index.js';
+import { APP_VERSION, BUILD, CHANGELOG_URL, versionLabel } from './version.js';
 
 export const APPS = [
   { id: 'map', ja: 'マップ', en: 'Map', tipJa: '漢字・熟語ネットワーク図', tipEn: 'Kanji & Compound Network Map', file: 'index.html', icon: '🕸️' },
@@ -108,6 +109,7 @@ function openMoreSheet() {
         <button type="button" class="menu-row" data-more="theme"><span>🌓 ${t('ライト/ダーク切替', 'Light / dark theme')}</span></button>
         ${installAvailable() ? `<button type="button" class="menu-row" data-more="install"><span>📲 ${t('ホーム画面に追加', 'Install app')}</span></button>` : ''}
       </div>
+      ${versionFooter()}
     </div>`;
   openModal('hub-more-sheet');
 }
@@ -266,6 +268,7 @@ export function openDataPanel() {
         <textarea id="hub-json-text" class="field-textarea mono" spellcheck="false"></textarea>
         <div class="modal-actions"><button type="button" class="tb-btn primary" id="hub-json-apply">${t('テキストから適用', 'Apply text')}</button></div>
       </details>
+      ${versionFooter()}
     </div>`;
 
   const textArea = el.querySelector('#hub-json-text');
@@ -305,6 +308,31 @@ export function openDataPanel() {
 }
 
 // ---------------------------------------------------------------------------
+// Version: footer line, one-time "updated" notice, debugging handle
+// ---------------------------------------------------------------------------
+function versionFooter() {
+  return `<div class="app-version">Kanji Nexus ${versionLabel()} · <a href="${CHANGELOG_URL}" target="_blank" rel="noopener noreferrer">${t('変更履歴', 'Changelog')}</a></div>`;
+}
+
+const SEEN_VERSION_KEY = 'kanji_nexus_seen_version';
+function announceUpdate() {
+  window.KANJI_NEXUS_VERSION = { version: APP_VERSION, build: BUILD };
+  console.info(`Kanji Nexus ${versionLabel()}`);
+  if (BUILD === 'dev') return;
+  let previous = null;
+  try {
+    previous = localStorage.getItem(SEEN_VERSION_KEY);
+    localStorage.setItem(SEEN_VERSION_KEY, APP_VERSION);
+  } catch (_) {}
+  // First visit ever: nothing to announce. Only a change of app version is news.
+  if (previous && previous !== APP_VERSION) {
+    toast(t(`v${APP_VERSION} に更新されました`, `Updated to v${APP_VERSION}`), {
+      action: { label: t('変更点', "What's new"), run: () => window.open(CHANGELOG_URL, '_blank', 'noopener') },
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Page bootstrap
 // ---------------------------------------------------------------------------
 export async function initPage(appId) {
@@ -319,6 +347,7 @@ export async function initPage(appId) {
   onInstallAvailable(() => document.getElementById('hub-more-sheet')?.classList.contains('open') && openMoreSheet());
   initTooltips();
   registerServiceWorker();
+  announceUpdate();
 
   const source = await store.load();
   if (source === 'legacy') toast(t('以前のデータを新しい形式に移行しました', 'Migrated your data to the new format'));
