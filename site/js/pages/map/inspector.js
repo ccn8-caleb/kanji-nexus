@@ -9,7 +9,7 @@ import { t, tr } from '../../core/prefs.js';
 import { toast, bindImeField, bindSwipe, isCompact, isTouch } from '../../core/ui.js';
 import { icon } from '../../core/icons.js';
 import { attachKanaInput } from '../../core/kana.js';
-import { findFreePosition, wordAnchor, setPos } from './layout.js';
+import { settle, getPos } from './layout.js';
 
 const elPanel = document.getElementById('inspector-panel');
 const elBody = document.getElementById('inspector-body');
@@ -299,7 +299,7 @@ function renderWord(ctx, node, common) {
     <div class="field-group">
       <label class="field-label">
         <span>${t('構成親漢字', 'Constituent Kanji')}</span>
-        ${parentIds.length ? `<button type="button" id="btn-recenter-compound" class="hint-chip">${t('親漢字の中心へ再配置', 'Center between parents')}</button>` : ''}
+        ${parentIds.length ? `<button type="button" id="btn-recenter-compound" class="hint-chip">${t('この周辺を整える', 'Tidy around this')}</button>` : ''}
       </label>
       <div class="chip-row">
         ${parentIds.map((pid) => `<button type="button" class="kanji-chip" data-jump-node="${escapeHtml(pid)}">${escapeHtml(graph.kanji.get(pid).label)}</button>`).join('')}
@@ -348,12 +348,16 @@ function renderWord(ctx, node, common) {
   bindField(ctx, elBody.querySelector('#insp-meaning'), (doc, v) => (doc.words[node.key].meaning = v.trim()));
   bindField(ctx, elBody.querySelector('#insp-notes'), (doc, v) => (doc.words[node.key].notes = v));
 
+  // Re-place this word between its kanji (unpinning it) and let neighbours make room.
   elBody.querySelector('#btn-recenter-compound')?.addEventListener('click', () => {
+    const old = getPos(store.doc, node.id);
+    let from;
     store.edit((doc) => {
-      const base = wordAnchor(doc, graph, node.id, { x: node.x, y: node.y });
-      const pos = findFreePosition(doc, base.x, base.y, { excludeId: node.id, clearance: 95 });
-      setPos(doc, node.id, pos.x, pos.y);
+      delete doc.layout.words[node.key];
+      from = settle(doc, [node.id]);
+      if (old) from.set(node.id, [old[0], old[1]]);
     }, 'layout');
+    ctx.canvas.animateFrom(from);
     ctx.select(node.id, { center: true });
   });
 

@@ -12,14 +12,14 @@
 import { icon } from '../../core/icons.js';
 import { GRAMMAR_TAGS } from '../../core/constants.js';
 import { escapeHtml, extractKanji, labelOf, debounce } from '../../core/util.js';
-import { kanjiId, wordId, buildGraph } from '../../core/graph.js';
+import { kanjiId, wordId } from '../../core/graph.js';
 import * as ops from '../../core/ops.js';
 import { t, tr } from '../../core/prefs.js';
 import { openModal, onModalClose, bindImeField } from '../../core/ui.js';
 import { trackImeReading } from '../../core/ime.js';
 import { attachKanaInput } from '../../core/kana.js';
 import { lookup, pickEntry, meaningText, tagsFor, DICT_CREDIT } from '../../core/dict.js';
-import { findFreePosition, wordAnchor, getPos, setPos } from './layout.js';
+import { settle, findFreeSpot, setPos } from './layout.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -281,29 +281,26 @@ export function initAddWord(ctx) {
       return els.label.select();
     }
 
-    // Placement: "add here" point if given; else between its kanji. New kanji go beside
-    // an existing sibling (or the selected kanji, or the viewport centre).
+    // Placement (layout.js settle): the word goes between its kanji, new kanji beside a
+    // related one, and nearby nodes shift aside to make room. "Add here" pins the word
+    // where you clicked — like dragging it there.
     const center = at || canvas.viewportCenter();
-    const selectedKanji = store.graph.kanji.get(view.selectedId);
+    let from;
     const result = store.edit((doc) => {
-      const siblings = extractKanji(labelOf(key)).filter((ch) => doc.kanji[ch]);
       const res = ops.addWord(
         doc,
         key,
         { reading, meaning: els.meaning.value.trim(), tags: [...tags], notes: els.notes.value.trim() },
         { createKanji: view.autoCreateKanji, linkDerivatives: view.autoLink }
       );
-      const anchor = siblings.length ? getPos(doc, kanjiId(siblings[0])) : selectedKanji ? [selectedKanji.x, selectedKanji.y] : null;
-      for (const ch of res.createdKanji) {
-        const base = anchor && !at ? { x: anchor[0] + 240, y: anchor[1] } : center;
-        const pos = findFreePosition(doc, base.x, base.y);
-        setPos(doc, kanjiId(ch), pos.x, pos.y);
+      if (at) {
+        const spot = findFreeSpot(doc, at.x, at.y);
+        setPos(doc, wordId(key), spot.x, spot.y, { pin: true });
       }
-      const base = at || wordAnchor(doc, buildGraph(doc), wordId(key), center);
-      const pos = findFreePosition(doc, base.x, base.y, { excludeId: wordId(key), clearance: 95 });
-      setPos(doc, wordId(key), pos.x, pos.y);
+      from = settle(doc, [wordId(key), ...res.createdKanji.map(kanjiId)], { center });
       return res;
     });
+    canvas.animateFrom(from);
     added.push(key);
     renderAdded();
     const extra = result.derivatives?.length ? t(`・派生語リンク ${result.derivatives.length}`, ` · ${result.derivatives.length} derivative link(s)`) : '';

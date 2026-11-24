@@ -12,7 +12,7 @@ import { initAddWord } from './add-word.js';
 import { initAddKanji } from './add-kanji.js';
 import { createCanvas } from './canvas.js';
 import { renderInspector, initInspectorGestures, deleteNode } from './inspector.js';
-import { placeMissing, autoArrange, getPos } from './layout.js';
+import { placeMissing, tidy, tidyAsync, getPos, isPinned, setPinned, unpinAll } from './layout.js';
 
 const VIEW_PREFS_KEY = 'kanji_nexus_map_view';
 const CAMERA_KEY = 'kanji_nexus_map_camera';
@@ -194,10 +194,33 @@ const toggle = (key) => {
 };
 const undo = () => store.undo() && toast(t('操作を元に戻しました', 'Undid last action'));
 const redo = () => store.redo() && toast(t('操作をやり直しました', 'Redid action'));
-function arrange() {
-  store.edit((doc) => autoArrange(doc), 'layout');
-  canvas.fit();
-  toast(t('クラスター別に自動整列しました', 'Auto-arranged clusters'), { action: { label: t('元に戻す', 'Undo'), run: undo } });
+// Tidy up: organic layout per cluster, clusters packed together; pinned nodes stay.
+// Big maps lay out in a background thread, so the page never freezes.
+let tidying = false;
+async function arrange() {
+  if (tidying) return;
+  tidying = true;
+  const big = Object.keys(store.doc.words).length + Object.keys(store.doc.kanji).length > 400;
+  if (big) toast(t('整えています…', 'Tidying up…'));
+  try {
+    const draft = JSON.parse(JSON.stringify(store.doc));
+    const from = await tidyAsync(draft);
+    store.edit((doc) => (doc.layout = draft.layout), 'layout');
+    canvas.fit();
+    canvas.animateFrom(from, 600);
+    toast(t('マップを整えました', 'Map tidied up'), { action: { label: t('元に戻す', 'Undo'), run: undo } });
+  } catch (err) {
+    console.error(err);
+    toast(t('整えられませんでした', 'Could not tidy the map'));
+  } finally {
+    tidying = false;
+  }
+}
+
+function togglePin(id) {
+  const on = !isPinned(store.doc, id);
+  store.edit((doc) => setPinned(doc, id, on), 'layout');
+  toast(on ? t('固定しました（整えても動きません）', 'Pinned — tidy-up won’t move it') : t('固定を解除しました', 'Unpinned'));
 }
 
 const VIEW_TOGGLES = [
@@ -216,8 +239,15 @@ function viewMenuItems() {
     { separator: true },
     { label: view.linkMode ? t('リンク接続モードを終了', 'Exit link mode') : t('リンク接続モード', 'Link mode'), icon: 'link', run: () => setLinkMode(!view.linkMode) },
     { label: t('全体を表示', 'Show everything'), icon: 'fit', run: () => canvas.fit() },
-    { label: t('自動整列', 'Auto-arrange'), icon: 'arrange', run: arrange },
+    { label: t('マップを整える', 'Tidy up'), icon: 'tidy', run: arrange },
+    { label: t('すべての固定を解除', 'Unpin all'), icon: 'unpin', disabled: !hasPins(), run: unpinEverything },
   ];
+}
+
+const hasPins = () => ['kanji', 'words'].some((sec) => Object.values(store.doc.layout[sec]).some((p) => p[2]));
+function unpinEverything() {
+  const n = store.edit((doc) => unpinAll(doc), 'layout');
+  toast(t(`${n} 個の固定を解除しました`, `Unpinned ${n} node(s)`), { action: { label: t('元に戻す', 'Undo'), run: undo } });
 }
 
 function addMenuItems(at = null) {
@@ -238,6 +268,9 @@ function showContextMenu(nodeId, clientX, clientY, world) {
       { label: t('編集', 'Edit'), icon: 'edit', run: () => select(node.id, { edit: true }) },
       ...(node.kind === 'word' ? [{ label: t('ここからリンク接続', 'Link from here'), icon: 'link', run: () => startLink(node.id) }] : []),
       { label: t('中央に表示', 'Center'), icon: 'center', run: () => canvas.focusOn(node.x, node.y) },
+      isPinned(store.doc, node.id)
+        ? { label: t('固定を解除', 'Unpin'), icon: 'unpin', run: () => togglePin(node.id) }
+        : { label: t('ここに固定', 'Pin here'), icon: 'pin', run: () => togglePin(node.id) },
       { separator: true },
       { label: t('削除', 'Delete'), icon: 'delete', danger: true, run: () => deleteNode(ctx, node) },
     ];
@@ -247,7 +280,7 @@ function showContextMenu(nodeId, clientX, clientY, world) {
       { label: t('ここに漢字を追加', 'Add kanji here'), icon: 'add', hint: 'K', run: () => addKanji.open(world) },
       { separator: true },
       { label: t('全体を表示', 'Show everything'), icon: 'fit', run: () => canvas.fit() },
-      { label: t('自動整列', 'Auto-arrange'), icon: 'arrange', run: arrange },
+      { label: t('マップを整える', 'Tidy up'), icon: 'tidy', run: arrange },
     ];
   }
   openMenu({ x: clientX, y: clientY, items });
@@ -351,7 +384,8 @@ function renderToolsSheet() {
     toggles +
     action('link', 'link', 'リンク接続モード', 'Link mode') +
     action('fit', 'fit', '全体を表示', 'Show everything') +
-    action('arrange', 'arrange', '自動整列', 'Auto-arrange') +
+    action('arrange', 'tidy', 'マップを整える', 'Tidy up') +
+    action('unpin', 'unpin', 'すべての固定を解除', 'Unpin all', !hasPins()) +
     action('redo', 'redo', 'やり直す', 'Redo', !store.canRedo);
 }
 $('m-btn-tools').addEventListener('click', () => {
@@ -370,6 +404,7 @@ $('map-tools-list').addEventListener('click', (e) => {
   if (tool === 'link') setLinkMode(true);
   else if (tool === 'fit') canvas.fit();
   else if (tool === 'arrange') arrange();
+  else if (tool === 'unpin') unpinEverything();
   else if (tool === 'redo') redo();
 });
 
@@ -436,7 +471,7 @@ registerDataAction({
 // ---------------------------------------------------------------------------
 const hadLayout = Object.keys(store.doc.layout.kanji).length > 0;
 if (!hadLayout && Object.keys(store.doc.kanji).length) {
-  autoArrange(store.doc);
+  tidy(store.doc);
   store.commit('layout');
 } else if (placeMissing(store.doc, { x: 0, y: 0 })) {
   store.commit('layout');

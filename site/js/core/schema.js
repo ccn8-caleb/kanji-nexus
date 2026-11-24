@@ -6,7 +6,7 @@
 //     kanji:  { "構": { on: ["コウ"], kun: ["かま.える"], notes?, color? } },
 //     words:  { "構造": { reading: "こうぞう", meaning?: "structure; …", tags?: [], notes?, color? } },
 //     links:  [ ["構造", "構成", "synonym"] ],             // undirected
-//     layout: { kanji: { "構": [x, y] }, words: { "構造": [x, y] } }
+//     layout: { kanji: { "構": [x, y] }, words: { "構造": [x, y, 1] } }   // 3rd value 1 = pinned
 //   }
 // Parent kanji of a word are never stored: they are derived from its characters.
 //
@@ -17,7 +17,7 @@ import { splitReadings } from './util.js';
 
 const str = (v) => (v == null ? '' : String(v));
 const strList = (v) => (Array.isArray(v) ? v.map(str).map((s) => s.trim()).filter(Boolean) : splitReadings(v));
-const isPos = (v) => Array.isArray(v) && v.length === 2 && v.every(Number.isFinite);
+const isPos = (v) => Array.isArray(v) && (v.length === 2 || v.length === 3) && v.every(Number.isFinite);
 
 export function emptyDoc() {
   return { schema: SCHEMA_VERSION, kanji: {}, words: {}, links: [], layout: { kanji: {}, words: {} } };
@@ -68,7 +68,7 @@ export function normalize(raw) {
   const lay = raw.layout || {};
   for (const section of ['kanji', 'words']) {
     for (const [key, pos] of Object.entries(lay[section] || {})) {
-      if (isPos(pos)) doc.layout[section][key] = [Math.round(pos[0]), Math.round(pos[1])];
+      if (isPos(pos)) doc.layout[section][key] = pos[2] ? [Math.round(pos[0]), Math.round(pos[1]), 1] : [Math.round(pos[0]), Math.round(pos[1])];
     }
   }
   return doc;
@@ -111,6 +111,8 @@ function compactWord(w) {
 }
 
 const j = (v) => JSON.stringify(v);
+// [x, y] or [x, y, 1] (pinned), always whole numbers.
+const posOut = (p) => (p[2] ? [Math.round(p[0]), Math.round(p[1]), 1] : [Math.round(p[0]), Math.round(p[1])]);
 
 function block(open, close, lines, indent) {
   if (!lines.length) return open + close;
@@ -143,7 +145,7 @@ export const sectionText = {
     ),
   layout: (doc, ind = 0) => {
     const sec = (name) =>
-      block('{', '}', sortedKeys(doc.layout[name]).map((k) => `${j(k)}: ${j(doc.layout[name][k])}`), ind + 1);
+      block('{', '}', sortedKeys(doc.layout[name]).map((k) => `${j(k)}: ${j(posOut(doc.layout[name][k]))}`), ind + 1);
     return block('{', '}', [`"kanji": ${sec('kanji')}`, `"words": ${sec('words')}`], ind);
   },
 };

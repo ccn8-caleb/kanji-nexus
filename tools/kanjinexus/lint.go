@@ -129,12 +129,19 @@ func lint(d *Doc, dir string) []issue {
 		seen[key] = true
 	}
 
+	checkPos := func(kind, k string, p []float64) {
+		if len(p) != 2 && !(len(p) == 3 && (p[2] == 0 || p[2] == 1)) {
+			add("error", "layout.json", "%s %s: position must be [x, y] or [x, y, 1] (pinned)", kind, k)
+		}
+	}
 	for _, k := range sortedKeys(d.Layout.Kanji) {
+		checkPos("kanji", k, d.Layout.Kanji[k])
 		if _, ok := d.Kanji[k]; !ok {
 			add("warn", "layout.json", "kanji %s: position for a kanji that does not exist", k)
 		}
 	}
 	for _, k := range sortedKeys(d.Layout.Words) {
+		checkPos("word", k, d.Layout.Words[k])
 		if _, ok := d.Words[k]; !ok {
 			add("warn", "layout.json", "word %s: position for a word that does not exist", k)
 		}

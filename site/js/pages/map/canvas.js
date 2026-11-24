@@ -4,6 +4,7 @@
 import { LINK_TYPES } from '../../core/constants.js';
 import { escapeHtml, fold, joinReadings } from '../../core/util.js';
 import { getPos, setPos } from './layout.js';
+import { icon } from '../../core/icons.js';
 import { isCompact } from '../../core/ui.js';
 
 const MIN_SCALE = 0.2;
@@ -184,6 +185,34 @@ export function createCanvas({ store, view, onTap, onBackgroundTap, onCameraChan
     return `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`;
   }
 
+  // -------------------------------------------------------------------------
+  // Layout animation: nodes glide from their previous positions after settle/tidy.
+  // -------------------------------------------------------------------------
+  let anim = null; // { from: Map(id → [x,y]), start, t }
+  const ease = (t) => 1 - Math.pow(1 - t, 3);
+  function animateFrom(from, duration = 420) {
+    if (!from?.size || matchMedia('(prefers-reduced-motion: reduce)').matches) return render();
+    anim = { from, start: performance.now(), t: 0, duration };
+    const step = (now) => {
+      if (!anim) return;
+      anim.t = ease(Math.min(1, (now - anim.start) / anim.duration));
+      render();
+      if (anim.t < 1) requestAnimationFrame(step);
+      else {
+        anim = null;
+        render();
+      }
+    };
+    requestAnimationFrame(step);
+  }
+  // Rendering position: the stored one, or partway along its animation.
+  function posOf(doc, id) {
+    const p = getPos(doc, id);
+    const f = anim?.from.get(id);
+    if (!p || !f) return p;
+    return [f[0] + (p[0] - f[0]) * anim.t, f[1] + (p[1] - f[1]) * anim.t, p[2]];
+  }
+
   function render() {
     const doc = store.doc;
     const graph = store.graph;
@@ -193,10 +222,10 @@ export function createCanvas({ store, view, onTap, onBackgroundTap, onCameraChan
     let parentPaths = '';
     for (const [wid, pids] of graph.parents) {
       if (!vis.visibleWords.has(wid)) continue;
-      const wp = getPos(doc, wid);
+      const wp = posOf(doc, wid);
       if (!wp) continue;
       for (const pid of pids) {
-        const kp = getPos(doc, pid);
+        const kp = posOf(doc, pid);
         if (!kp) continue;
         const hi = sel === pid || sel === wid || (vis.hiKanji.has(pid) && vis.hiWords.has(wid));
         parentPaths += `<path class="edge-primary${hi ? ' highlighted' : ''}" d="${curve(kp, wp, 0.08)}" />`;
@@ -207,39 +236,41 @@ export function createCanvas({ store, view, onTap, onBackgroundTap, onCameraChan
     let lateralPaths = '';
     for (const { a, b, type } of graph.links) {
       if (!vis.visibleWords.has(a) || !vis.visibleWords.has(b)) continue;
-      const pa = getPos(doc, a);
-      const pb = getPos(doc, b);
+      const pa = posOf(doc, a);
+      const pb = posOf(doc, b);
       if (pa && pb) lateralPaths += `<path class="edge-lateral" stroke="${LINK_TYPES[type].color}" d="${curve(pa, pb, 0.18)}" />`;
     }
     elEdgesLateral.innerHTML = lateralPaths;
 
     let html = '';
     for (const k of graph.kanji.values()) {
-      const pos = getPos(doc, k.id);
+      const pos = posOf(doc, k.id);
       if (!pos) continue;
       const selected = sel === k.id;
       const dimmed = vis.hasFocus && !selected && !vis.hiKanji.has(k.id);
       const reading = view.showReadings ? k.on[0] || k.kun[0] || '' : '';
       const glow = selected ? `box-shadow: 0 0 0 5px ${k.color}33, 0 8px 20px rgba(15, 23, 42, 0.18);` : '';
-      html += `<div class="node-primary${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}" data-node-id="${escapeHtml(k.id)}"
+      const pin = pos[2] ? `<span class="pin-badge" title="pinned">${icon('pin')}</span>` : '';
+      html += `<div class="node-primary${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}${pos[2] ? ' pinned' : ''}" data-node-id="${escapeHtml(k.id)}"
         style="left:${pos[0]}px; top:${pos[1]}px; border-color:${k.color}; ${glow}">
         <span class="node-primary-char">${escapeHtml(k.label)}</span>
-        ${reading ? `<span class="node-primary-reading">${escapeHtml(reading)}</span>` : ''}
+        ${reading ? `<span class="node-primary-reading">${escapeHtml(reading)}</span>` : ''}${pin}
       </div>`;
     }
     for (const w of graph.words.values()) {
-      const pos = getPos(doc, w.id);
+      const pos = posOf(doc, w.id);
       if (!pos || !vis.visibleWords.has(w.id)) continue;
       const selected = sel === w.id;
       const dimmed = vis.hasFocus && !selected && !vis.hiWords.has(w.id);
       const glow = selected ? `box-shadow: 0 0 0 4px ${w.color}33, 0 6px 16px rgba(15, 23, 42, 0.16);` : '';
-      html += `<div class="node-secondary${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}" data-node-id="${escapeHtml(w.id)}"
+      const wpin = pos[2] ? `<span class="pin-badge" title="pinned">${icon('pin')}</span>` : '';
+      html += `<div class="node-secondary${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}${pos[2] ? ' pinned' : ''}" data-node-id="${escapeHtml(w.id)}"
         style="left:${pos[0]}px; top:${pos[1]}px; border-color:${w.color}; ${glow}">
         <div class="node-secondary-row">
           <span class="node-secondary-dot" style="background:${w.color};"></span>
           <span class="node-secondary-label">${escapeHtml(w.label)}</span>
         </div>
-        ${view.showReadings && w.reading ? `<div class="node-secondary-reading">${escapeHtml(w.reading)}</div>` : ''}
+        ${view.showReadings && w.reading ? `<div class="node-secondary-reading">${escapeHtml(w.reading)}</div>` : ''}${wpin}
       </div>`;
     }
     elNodes.innerHTML = html;
@@ -363,7 +394,12 @@ export function createCanvas({ store, view, onTap, onBackgroundTap, onCameraChan
       return;
     }
     if (mode === 'drag' && dragId) {
-      if (moved) store.commit('layout');
+      if (moved) {
+        // A node you place by hand stays there: automatic layout won't move it.
+        const p = getPos(store.doc, dragId);
+        setPos(store.doc, dragId, p[0], p[1], { pin: true });
+        store.commit('layout');
+      }
       else onTap(dragId);
     } else if (mode === 'pan' && !moved) {
       onBackgroundTap();
@@ -386,5 +422,5 @@ export function createCanvas({ store, view, onTap, onBackgroundTap, onCameraChan
     { passive: false }
   );
 
-  return { render, fit, focusOn, centerOn, zoomBy, resetZoom, viewportCenter, clientToWorld, getView, restoreView };
+  return { render, fit, focusOn, centerOn, zoomBy, resetZoom, viewportCenter, clientToWorld, getView, restoreView, animateFrom };
 }

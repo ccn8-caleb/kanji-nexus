@@ -7,6 +7,28 @@ deploy also carries a build id (commit hash), shown next to the version in the a
 **Numbering (from 0.6.0):** every release bumps the patch number (0.6.1, 0.6.2, …,
 0.6.15 is fine). The minor number only moves for a milestone called out on purpose.
 
+## [0.6.2] — 2026-11-24 — Map layout
+
+### Changed
+- New layout engine (force-directed, d3-force): links act as springs, nodes repel,
+  and collisions use each node's real size, so nothing overlaps or crowds.
+- Adding words no longer crams them into the nearest gap. A new word starts between
+  its kanji (or on the free, outward side of a single kanji) and its nearest
+  neighbours shift aside to make room, with a short animation; the rest of the map
+  stays put. Back-to-back adds around one kanji spread evenly around it.
+- **Tidy up** (replaces 自動整列): each connected cluster gets an organic layout with
+  its busiest kanji in the middle, untangled to minimise crossing lines, and the
+  clusters are packed into rows with even gaps — compact, not spread out. Large maps
+  (400+ nodes) lay out in a background thread so the page never freezes. Undoable.
+- The inspector's "Center between parents" is now **Tidy around this**.
+- The starter sample was re-laid-out with Tidy up.
+
+### Added
+- **Pins**: dragging a node pins it (small pin badge), and automatic layout never moves
+  pinned nodes. Pin/unpin from the right-click / long-press menu; "Unpin all" in the
+  View menu. "Add here" pins the new node where you clicked. In `layout.json` a pinned
+  position is `[x, y, 1]`.
+
 ## [0.6.1] — 2026-11-24 — Polish
 
 ### Changed
