@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>漢字ネットワーク | Kanji Nexus</title>
+  <title>漢字ネクサス | Kanji Nexus</title>
   <link rel="icon" type="image/svg+xml" href="icon.svg">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="漢字Nexus">
+  <meta name="apple-mobile-web-app-title" content="漢字ネクサス">
   <script>document.documentElement.dataset.theme = localStorage.getItem('kanji_nexus_theme') === 'dark' ? 'dark' : 'light';</script>
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/map.css">
@@ -23,43 +23,36 @@
   <header id="top-bar">
     <div class="brand-group">
       <img class="brand-badge" src="icon.svg" alt="">
-      <span class="brand-title" data-tip-ja="漢字・熟語ネットワークマップ" data-tip-en="Kanji & Compound Network Map">漢字ネットワーク</span>
+      <span class="brand-title" data-ja="漢字ネクサス" data-en="Kanji Nexus" data-tip-ja="漢字と熟語をつなぐ学習マップ" data-tip-en="Map, analyze and drill kanji">漢字ネクサス</span>
       <div id="nexus-hub-slot"></div>
     </div>
 
-    <div class="toolbar-scroll">
-      <button type="button" id="btn-open-add-primary" class="tb-btn primary" data-ja="＋ 漢字" data-en="＋ Kanji" data-tip-ja="新しい親漢字を追加" data-tip-en="Add Primary Kanji">＋ 漢字</button>
-      <button type="button" id="btn-open-add-secondary" class="tb-btn secondary" data-ja="＋ 熟語" data-en="＋ Compound" data-tip-ja="新しい熟語を追加" data-tip-en="Add Compound">＋ 熟語</button>
-
-      <div class="tb-divider"></div>
-
-      <button type="button" id="btn-toggle-reveal" class="tb-btn" data-tip-ja="集中表示と全体表示を切替" data-tip-en="Toggle Focus Mode / Reveal All">集中表示</button>
-      <button type="button" id="btn-toggle-readings" class="tb-btn" data-tip-ja="読み仮名の表示/非表示" data-tip-en="Show / Hide Readings">読み表示</button>
-      <button type="button" id="btn-toggle-link-mode" class="tb-btn" data-ja="リンク接続" data-en="Link Mode" data-tip-ja="熟語同士の関連リンクを作成" data-tip-en="Interactive Compound Link Mode">リンク接続</button>
-      <button type="button" id="btn-auto-arrange" class="tb-btn" data-ja="自動整列" data-en="Auto-Arrange" data-tip-ja="クラスター別に自動整列" data-tip-en="Auto-Arrange Clusters">自動整列</button>
-
-      <div class="tb-divider"></div>
-
-      <button type="button" id="btn-toggle-autolink" class="tb-btn" data-tip-ja="熟語追加時に派生語（例: 魅力↔魅力的）を自動リンク" data-tip-en="Auto-link derivatives (e.g. 魅力 ↔ 魅力的) when adding">自動リンク</button>
-      <button type="button" id="btn-toggle-autocreate" class="tb-btn" data-tip-ja="熟語追加時に未登録の親漢字を自動作成" data-tip-en="Auto-create missing kanji when adding">未登録漢字自動作成</button>
-
-      <div class="tb-divider"></div>
-
-      <button type="button" id="btn-undo" class="tb-btn" disabled data-ja="↩ 戻す" data-en="↩ Undo" data-tip-ja="操作を元に戻す (Ctrl+Z)" data-tip-en="Undo (Ctrl+Z)">↩ 戻す</button>
-      <button type="button" id="btn-redo" class="tb-btn" disabled data-ja="↪ やり直す" data-en="↪ Redo" data-tip-ja="操作をやり直す (Ctrl+Y)" data-tip-en="Redo (Ctrl+Y)">↪ やり直す</button>
-
-      <div class="tb-divider"></div>
-
-      <input type="search" id="map-search-input" placeholder="漢字・読み検索..." data-placeholder-ja="漢字・読み検索..." data-placeholder-en="Search kanji / reading..." data-tip-ja="漢字・熟語・読みで検索" data-tip-en="Search Kanji / Reading">
+    <!-- Desktop & tablet: search, one Add button, undo/redo, one View menu -->
+    <div class="map-actions">
+      <label class="search-field" data-tip-ja="漢字・熟語・読み・意味で検索（/）" data-tip-en="Search kanji, words, readings, meanings (/)">
+        <span data-icon="search"></span>
+        <input type="search" id="map-search-input" autocomplete="off" spellcheck="false"
+          data-placeholder-ja="検索（漢字・読み・意味）" data-placeholder-en="Search kanji, readings, meanings">
+      </label>
+      <button type="button" id="btn-add-menu" class="tb-btn primary" data-menu-anchor aria-haspopup="menu"
+        data-tip-ja="熟語・漢字を追加（N / K）" data-tip-en="Add a word or kanji (N / K)">
+        <span data-icon="add"></span><span data-ja="追加" data-en="Add">追加</span><span data-icon="chevronDown" class="caret"></span>
+      </button>
+      <div class="btn-group">
+        <button type="button" id="btn-undo" class="icon-btn" disabled aria-label="Undo" data-tip-ja="元に戻す（Ctrl+Z）" data-tip-en="Undo (Ctrl+Z)"><span data-icon="undo"></span></button>
+        <button type="button" id="btn-redo" class="icon-btn" disabled aria-label="Redo" data-tip-ja="やり直す（Ctrl+Y）" data-tip-en="Redo (Ctrl+Y)"><span data-icon="redo"></span></button>
+      </div>
+      <button type="button" id="btn-view-menu" class="icon-btn" data-menu-anchor aria-haspopup="menu" aria-label="View"
+        data-tip-ja="表示・ツール" data-tip-en="View & tools"><span data-icon="tools"></span></button>
     </div>
 
     <div id="nexus-hub-controls"></div>
 
-    <!-- Phones: compact actions (the toolbar above is hidden) -->
+    <!-- Phones -->
     <div class="mobile-actions">
-      <button type="button" id="m-btn-search" class="icon-btn" aria-label="検索 / Search">🔍</button>
-      <button type="button" id="m-btn-undo" class="icon-btn" aria-label="戻す / Undo" disabled>↩</button>
-      <button type="button" id="m-btn-tools" class="icon-btn" aria-label="表示・ツール / View & tools">⚙︎</button>
+      <button type="button" id="m-btn-search" class="icon-btn" aria-label="検索 / Search"><span data-icon="search"></span></button>
+      <button type="button" id="m-btn-undo" class="icon-btn" aria-label="戻す / Undo" disabled><span data-icon="undo"></span></button>
+      <button type="button" id="m-btn-tools" class="icon-btn" aria-label="表示・ツール / View & tools"><span data-icon="tools"></span></button>
     </div>
   </header>
 
@@ -88,32 +81,32 @@
   </main>
 
   <div id="link-mode-bar">
-    <span class="link-mode-title" data-ja="🔗 リンク接続モード:" data-en="🔗 Link mode:">🔗 リンク接続モード:</span>
+    <span class="link-mode-title"><span data-icon="link"></span><span data-ja="リンク接続モード" data-en="Link mode">リンク接続モード</span></span>
     <span id="link-mode-status"></span>
     <div id="link-mode-types" class="chip-row"></div>
     <button type="button" id="btn-exit-link-mode" class="tb-btn small" data-ja="終了 (Esc)" data-en="Exit (Esc)">終了 (Esc)</button>
   </div>
 
   <div id="zoom-controls">
-    <button type="button" id="btn-zoom-out" class="zoom-btn" data-tip-ja="縮小" data-tip-en="Zoom Out">−</button>
+    <button type="button" id="btn-zoom-out" class="zoom-btn" aria-label="Zoom out" data-tip-ja="縮小" data-tip-en="Zoom Out"><span data-icon="zoomOut"></span></button>
     <span id="zoom-level-text" data-tip-ja="100%にリセット" data-tip-en="Reset Zoom to 100%">100%</span>
-    <button type="button" id="btn-zoom-in" class="zoom-btn" data-tip-ja="拡大" data-tip-en="Zoom In">＋</button>
-    <button type="button" id="btn-zoom-fit" class="zoom-btn wide" data-ja="全体" data-en="Fit" data-tip-ja="全体を表示" data-tip-en="Fit All Nodes">全体</button>
+    <button type="button" id="btn-zoom-in" class="zoom-btn" aria-label="Zoom in" data-tip-ja="拡大" data-tip-en="Zoom In"><span data-icon="zoomIn"></span></button>
+    <button type="button" id="btn-zoom-fit" class="zoom-btn" aria-label="Fit" data-tip-ja="全体を表示" data-tip-en="Fit All Nodes"><span data-icon="fit"></span></button>
   </div>
 
   <div id="fab-wrap">
     <div id="fab-menu" hidden>
-      <button type="button" class="fab-option" data-fab="word" data-ja="＋ 熟語・語彙" data-en="＋ Word">＋ 熟語・語彙</button>
-      <button type="button" class="fab-option" data-fab="kanji" data-ja="＋ 親漢字" data-en="＋ Kanji">＋ 親漢字</button>
+      <button type="button" class="fab-option" data-fab="word"><span data-icon="add"></span><span data-ja="熟語・語彙" data-en="Word">熟語・語彙</span></button>
+      <button type="button" class="fab-option" data-fab="kanji"><span data-icon="add"></span><span data-ja="親漢字" data-en="Kanji">親漢字</span></button>
     </div>
-    <button type="button" id="fab" aria-label="追加 / Add">＋</button>
+    <button type="button" id="fab" aria-label="追加 / Add"><span data-icon="add"></span></button>
   </div>
 
   <div class="modal-backdrop" id="modal-map-tools">
     <div class="modal-card">
       <div class="modal-title">
         <span data-ja="表示・ツール" data-en="View & tools">表示・ツール</span>
-        <button type="button" class="tb-btn" data-close-modal="modal-map-tools">✕</button>
+        <button type="button" class="icon-btn small" data-close-modal="modal-map-tools" aria-label="Close"><span data-icon="close"></span></button>
       </div>
       <div class="menu-list" id="map-tools-list"></div>
     </div>
@@ -123,7 +116,7 @@
     <div class="inspector-header">
       <span class="sheet-grab" aria-hidden="true"></span>
       <span class="inspector-badge" id="inspector-type-badge"></span>
-      <button type="button" id="btn-close-inspector" class="tb-btn small">✕</button>
+      <button type="button" id="btn-close-inspector" class="icon-btn small" aria-label="Close"><span data-icon="close"></span></button>
     </div>
     <div class="inspector-body" id="inspector-body"></div>
   </aside>
@@ -131,9 +124,10 @@
   <div class="modal-backdrop" id="modal-add-primary">
     <div class="modal-card">
       <div class="modal-title">
-        <span data-ja="＋ 親漢字を追加" data-en="＋ Add Primary Kanji">＋ 親漢字を追加</span>
-        <button type="button" class="tb-btn" data-close-modal="modal-add-primary">✕</button>
+        <span data-ja="親漢字を追加" data-en="Add kanji">親漢字を追加</span>
+        <button type="button" class="icon-btn small" data-close-modal="modal-add-primary" aria-label="Close"><span data-icon="close"></span></button>
       </div>
+      <div class="added-list" id="kanji-added-list" hidden></div>
       <div class="field-group">
         <label class="field-label" data-ja="漢字 (1文字)" data-en="Kanji (1 character)">漢字 (1文字)</label>
         <input type="text" id="new-primary-label" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" maxlength="4" placeholder="例: 構" data-placeholder-ja="例: 構" data-placeholder-en="e.g. 構">
@@ -141,11 +135,11 @@
       <div class="field-grid-2">
         <div class="field-group">
           <label class="field-label" data-ja="音読み" data-en="Onyomi">音読み</label>
-          <input type="text" id="new-primary-onyomi" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="例: コウ" data-placeholder-ja="例: コウ" data-placeholder-en="e.g. コウ">
+          <input type="text" id="new-primary-onyomi" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="例: コウ" data-placeholder-ja="コウ（スペース2回で・）" data-placeholder-en="コウ (double space → ・)">
         </div>
         <div class="field-group">
           <label class="field-label" data-ja="訓読み" data-en="Kunyomi">訓読み</label>
-          <input type="text" id="new-primary-kunyomi" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="例: かま.える" data-placeholder-ja="例: かま.える" data-placeholder-en="e.g. かま.える">
+          <input type="text" id="new-primary-kunyomi" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="例: かま.える" data-placeholder-ja="かま.える（スペース2回で・）" data-placeholder-en="かま.える (double space → ・)">
         </div>
       </div>
       <div class="field-group">
@@ -153,8 +147,9 @@
         <input type="text" id="new-primary-notes" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="任意の学習メモ" data-placeholder-ja="任意の学習メモ" data-placeholder-en="Optional study notes">
       </div>
       <div class="modal-actions">
-        <button type="button" class="tb-btn" data-close-modal="modal-add-primary" data-ja="キャンセル" data-en="Cancel">キャンセル</button>
-        <button type="button" id="btn-confirm-add-primary" class="tb-btn primary" data-ja="追加する" data-en="Add">追加する</button>
+        <span class="form-status" id="kanji-form-status" role="status"></span>
+        <button type="button" class="tb-btn" data-close-modal="modal-add-primary" data-ja="完了" data-en="Done">完了</button>
+        <button type="button" id="btn-confirm-add-primary" class="tb-btn primary"><span data-ja="追加" data-en="Add">追加</span><kbd class="key-hint">Enter</kbd></button>
       </div>
     </div>
   </div>
@@ -162,9 +157,10 @@
   <div class="modal-backdrop" id="modal-add-secondary">
     <div class="modal-card">
       <div class="modal-title">
-        <span data-ja="＋ 熟語・語彙を追加" data-en="＋ Add Compound / Word">＋ 熟語・語彙を追加</span>
-        <button type="button" class="tb-btn" data-close-modal="modal-add-secondary">✕</button>
+        <span data-ja="熟語・語彙を追加" data-en="Add words">熟語・語彙を追加</span>
+        <button type="button" class="icon-btn small" data-close-modal="modal-add-secondary" aria-label="Close"><span data-icon="close"></span></button>
       </div>
+      <div class="added-list" id="word-added-list" hidden></div>
       <div class="field-group">
         <label class="field-label" data-ja="熟語・単語" data-en="Compound / word">熟語・単語</label>
         <input type="text" id="new-sec-label" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="例: 構造" data-placeholder-ja="例: 構造" data-placeholder-en="e.g. 構造">
@@ -172,7 +168,7 @@
       </div>
       <div class="field-group">
         <label class="field-label" data-ja="読み (ひらがな)" data-en="Reading (hiragana)">読み (ひらがな)</label>
-        <input type="text" id="new-sec-reading" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="例: こうぞう" data-placeholder-ja="例: こうぞう" data-placeholder-en="e.g. こうぞう">
+        <input type="text" id="new-sec-reading" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="例: こうぞう" data-placeholder-ja="こうぞう（ローマ字でも可）" data-placeholder-en="こうぞう (romaji works too)">
         <div id="new-sec-reading-hint" class="field-hint" hidden></div>
       </div>
       <div class="field-group">
@@ -189,8 +185,9 @@
         <input type="text" id="new-sec-notes" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="意味・例文・ニュアンス" data-placeholder-ja="意味・例文・ニュアンス" data-placeholder-en="Meaning, example, nuance">
       </div>
       <div class="modal-actions">
-        <button type="button" class="tb-btn" data-close-modal="modal-add-secondary" data-ja="キャンセル" data-en="Cancel">キャンセル</button>
-        <button type="button" id="btn-confirm-add-secondary" class="tb-btn secondary" data-ja="追加する" data-en="Add">追加する</button>
+        <span class="form-status" id="word-form-status" role="status"></span>
+        <button type="button" class="tb-btn" data-close-modal="modal-add-secondary" data-ja="完了" data-en="Done">完了</button>
+        <button type="button" id="btn-confirm-add-secondary" class="tb-btn secondary"><span data-ja="追加" data-en="Add">追加</span><kbd class="key-hint">Enter</kbd></button>
       </div>
     </div>
   </div>

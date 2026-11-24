@@ -12,12 +12,13 @@ import { t, tr, isEn, setLang, getLang, toggleTheme, onPrefsChange, applyStaticT
 import { toast, openModal, closeModal, initTooltips } from './ui.js';
 import { registerServiceWorker, installAvailable, promptInstall, onInstallAvailable } from './pwa.js';
 import plugins from '../sync/index.js';
+import { icon, hydrateIcons } from './icons.js';
 import { APP_VERSION, BUILD, CHANGELOG_URL, versionLabel } from './version.js';
 
 export const APPS = [
-  { id: 'map', ja: 'マップ', en: 'Map', tipJa: '漢字・熟語ネットワーク図', tipEn: 'Kanji & Compound Network Map', file: 'index.html', icon: '🕸️' },
-  { id: 'stats', ja: '統計・索引', en: 'Stats & Index', tipJa: '統計ダッシュボードと五十音索引', tipEn: 'Statistics & Kana Index', file: 'stats.html', icon: '📊' },
-  { id: 'drill', ja: '復習ドリル', en: 'SRS Drill', tipJa: '間隔反復フラッシュカード練習', tipEn: 'Spaced Repetition Flashcard Drill', file: 'drill.html', icon: '🎴' },
+  { id: 'map', ja: 'マップ', en: 'Map', tipJa: '漢字・熟語ネットワーク図', tipEn: 'Kanji & Compound Network Map', file: 'index.html', icon: 'map' },
+  { id: 'stats', ja: '統計・索引', en: 'Stats & Index', tipJa: '統計ダッシュボードと五十音索引', tipEn: 'Statistics & Kana Index', file: 'stats.html', icon: 'stats' },
+  { id: 'drill', ja: '復習ドリル', en: 'SRS Drill', tipJa: '間隔反復フラッシュカード練習', tipEn: 'Spaced Repetition Flashcard Drill', file: 'drill.html', icon: 'drill' },
 ];
 
 let currentApp = null;
@@ -51,7 +52,7 @@ function renderNav() {
   slot.innerHTML = `<nav class="hub-nav" aria-label="Kanji Nexus">${APPS.map((app) => {
     const active = app.id === currentApp;
     return `<a class="hub-pill${active ? ' active' : ''}" href="${app.file}" ${active ? 'aria-current="page"' : ''}
-      data-tip-ja="${app.tipJa}" data-tip-en="${app.tipEn}"><span aria-hidden="true">${app.icon}</span><span>${tr(app)}</span></a>`;
+      data-tip-ja="${app.tipJa}" data-tip-en="${app.tipEn}" aria-label="${tr(app)}">${icon(app.icon)}<span class="hub-pill-label">${tr(app)}</span></a>`;
   }).join('')}</nav>`;
   renderTabbar();
 }
@@ -71,10 +72,10 @@ function renderTabbar() {
     APPS.map((app) => {
       const active = app.id === currentApp;
       return `<a class="hub-tab${active ? ' active' : ''}" href="${app.file}" ${active ? 'aria-current="page"' : ''}>
-        <span class="hub-tab-icon" aria-hidden="true">${app.icon}</span><span class="hub-tab-label">${tr(app)}</span></a>`;
+        <span class="hub-tab-icon">${icon(app.icon)}</span><span class="hub-tab-label">${tr(app)}</span></a>`;
     }).join('') +
     `<button type="button" class="hub-tab" id="hub-tab-more" aria-label="${t('その他', 'More')}">
-       <span class="hub-tab-icon" aria-hidden="true">⋯</span><span class="hub-tab-label">${t('その他', 'More')}</span></button>`;
+       <span class="hub-tab-icon">${icon('more')}</span><span class="hub-tab-label">${t('その他', 'More')}</span></button>`;
   renderBadge();
 }
 
@@ -100,14 +101,14 @@ function openMoreSheet() {
   }
   el.innerHTML = `
     <div class="modal-card">
-      <div class="modal-title"><span>${t('その他', 'More')}</span><button type="button" class="tb-btn" data-close-modal="hub-more-sheet">✕</button></div>
+      <div class="modal-title"><span>${t('その他', 'More')}</span><button type="button" class="icon-btn small" data-close-modal="hub-more-sheet" aria-label="Close">${icon('close')}</button></div>
       <div class="menu-list">
-        <button type="button" class="menu-row" data-more="data"><span>💾 ${t('データ・同期・バックアップ', 'Data, sync & backup')}</span>${syncStatus?.badge ? `<span class="sync-badge ${syncStatus.tone || ''}">${syncStatus.badge}</span>` : ''}</button>
-        <div class="menu-row static"><span>🌐 ${t('表示言語', 'Language')}</span>
+        <button type="button" class="menu-row" data-more="data"><span class="row-label">${icon('data')}${t('データ・同期・バックアップ', 'Data, sync & backup')}</span>${badgeHtml()}</button>
+        <div class="menu-row static"><span class="row-label">${icon('language')}${t('表示言語', 'Language')}</span>
           <div class="lang-switch"><button type="button" data-more="ja" class="${getLang() === 'ja' ? 'active' : ''}">日本語</button><button type="button" data-more="en" class="${getLang() === 'en' ? 'active' : ''}">EN</button></div>
         </div>
-        <button type="button" class="menu-row" data-more="theme"><span>🌓 ${t('ライト/ダーク切替', 'Light / dark theme')}</span></button>
-        ${installAvailable() ? `<button type="button" class="menu-row" data-more="install"><span>📲 ${t('ホーム画面に追加', 'Install app')}</span></button>` : ''}
+        <button type="button" class="menu-row" data-more="theme"><span class="row-label">${icon('theme')}${t('ライト/ダーク切替', 'Light / dark theme')}</span></button>
+        ${installAvailable() ? `<button type="button" class="menu-row" data-more="install"><span class="row-label">${icon('install')}${t('ホーム画面に追加', 'Install app')}</span></button>` : ''}
       </div>
       ${versionFooter()}
     </div>`;
@@ -118,15 +119,17 @@ function renderControls() {
   const slot = document.getElementById('nexus-hub-controls');
   if (!slot) return;
   slot.innerHTML = `
-    <button type="button" class="tb-btn" id="hub-btn-data" data-tip-ja="バックアップ・転送・リセット" data-tip-en="Backup, Transfer & Reset">💾 ${t('データ', 'Data')}</button>
-    <div class="lang-switch" data-tip-ja="表示言語切替" data-tip-en="Switch Interface Language">
+    <button type="button" class="tb-btn wide-only" id="hub-btn-data" data-tip-ja="同期・バックアップ・リセット" data-tip-en="Sync, backup & reset">${icon('data')}<span>${t('データ', 'Data')}</span></button>
+    <div class="lang-switch wide-only" data-tip-ja="表示言語切替" data-tip-en="Switch Interface Language">
       <button type="button" data-set-lang="ja" class="${getLang() === 'ja' ? 'active' : ''}">日本語</button>
       <button type="button" data-set-lang="en" class="${getLang() === 'en' ? 'active' : ''}">EN</button>
     </div>
-    <button type="button" class="tb-btn" id="hub-btn-theme" data-tip-ja="ライト/ダークテーマ切替" data-tip-en="Toggle Light / Dark Theme">🌓</button>`;
+    <button type="button" class="icon-btn wide-only" id="hub-btn-theme" aria-label="Theme" data-tip-ja="ライト/ダークテーマ切替" data-tip-en="Toggle Light / Dark Theme">${icon('theme')}</button>
+    <button type="button" class="icon-btn narrow-only" id="hub-btn-more" aria-label="${t('その他', 'More')}" data-tip-ja="データ・言語・テーマ" data-tip-en="Data, language & theme">${icon('more')}</button>`;
   slot.querySelector('#hub-btn-data').addEventListener('click', openDataPanel);
   renderBadge();
   slot.querySelector('#hub-btn-theme').addEventListener('click', toggleTheme);
+  slot.querySelector('#hub-btn-more').addEventListener('click', openMoreSheet);
   slot.querySelectorAll('[data-set-lang]').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.setLang)));
 }
 
@@ -158,16 +161,18 @@ export function setSyncStatus(status) {
   refreshDataPanel();
 }
 
+// Status icon per tone: synced, syncing (spins), needs attention, error/offline.
+const BADGE_ICONS = { ok: 'cloudOk', busy: 'loading', warn: 'alert', error: 'cloudOff' };
+function badgeHtml() {
+  if (!syncStatus?.tone) return '';
+  return `<span class="sync-badge ${syncStatus.tone}" data-state="${syncStatus.tone}" title="${(syncStatus.detail || '').replace(/"/g, '&quot;')}">${icon(BADGE_ICONS[syncStatus.tone] || 'cloud')}</span>`;
+}
 function renderBadge() {
-  for (const btn of [document.getElementById('hub-btn-data'), document.getElementById('hub-tab-more')]) {
+  for (const id of ['hub-btn-data', 'hub-tab-more', 'hub-btn-more']) {
+    const btn = document.getElementById(id);
     if (!btn) continue;
     btn.querySelector('.sync-badge')?.remove();
-    if (!syncStatus?.badge) continue;
-    const badge = document.createElement('span');
-    badge.className = `sync-badge ${syncStatus.tone || ''}`;
-    badge.textContent = syncStatus.badge;
-    badge.title = syncStatus.detail || '';
-    btn.appendChild(badge);
+    btn.insertAdjacentHTML('beforeend', badgeHtml());
   }
 }
 
@@ -221,7 +226,7 @@ function sectionHtml(section) {
   if (!actions.length) return '';
   const detail = section.id === 'sync' && syncStatus?.detail ? `<p class="panel-note sync-detail ${syncStatus.tone || ''}">${syncStatus.detail}</p>` : '';
   const buttons = actions
-    .map((a) => `<button type="button" class="tb-btn${a.primary?.() ? ' primary' : ''}" data-hub-action="${a.id}">${a.label ? a.label() : tr(a)}</button>`)
+    .map((a) => `<button type="button" class="tb-btn${a.primary?.() ? ' primary' : ''}" data-hub-action="${a.id}">${a.icon ? icon(a.icon) : ''}${a.label ? a.label() : tr(a)}</button>`)
     .join('');
   return `
       <div class="field-group">
@@ -237,8 +242,8 @@ export function openDataPanel() {
   el.innerHTML = `
     <div class="modal-card wide">
       <div class="modal-title">
-        <span>💾 ${t('データ管理', 'Your Data')}</span>
-        <button type="button" class="tb-btn" data-close-modal="hub-data-panel">✕</button>
+        <span class="title-with-icon">${icon('data')}${t('データ管理', 'Your Data')}</span>
+        <button type="button" class="icon-btn small" data-close-modal="hub-data-panel" aria-label="Close">${icon('close')}</button>
       </div>
       <p class="panel-note">${t(
         `データはこのブラウザに保存されています（漢字 ${g.kanji.size}・語彙 ${g.words.size}）。他の端末へ移すにはクラウド同期・転送リンク・バックアップファイルを使ってください。`,
@@ -248,8 +253,8 @@ export function openDataPanel() {
       <div class="field-group">
         <label class="field-label">${t('バックアップ', 'Backup')}</label>
         <div class="chip-row">
-          <button type="button" class="tb-btn primary" id="hub-export">⬇ ${t('ファイルに保存', 'Download .json')}</button>
-          <label class="tb-btn">⬆ ${t('ファイルから読込', 'Load .json')}<input type="file" id="hub-import-file" accept=".json,application/json" hidden></label>
+          <button type="button" class="tb-btn primary" id="hub-export">${icon('fileDown')}${t('ファイルに保存', 'Download .json')}</button>
+          <label class="tb-btn">${icon('fileUp')}${t('ファイルから読込', 'Load .json')}<input type="file" id="hub-import-file" accept=".json,application/json" hidden></label>
         </div>
       </div>
 
@@ -258,8 +263,8 @@ export function openDataPanel() {
       <div class="field-group">
         <label class="field-label">${t('サンプル・初期化', 'Sample & reset')}</label>
         <div class="chip-row">
-          <button type="button" class="tb-btn" id="hub-reset-starter">🌱 ${t('サンプルに戻す', 'Reset to sample')}</button>
-          <button type="button" class="tb-btn danger" id="hub-wipe">🗑 ${t('すべて消去して空から始める', 'Erase all & start empty')}</button>
+          <button type="button" class="tb-btn" id="hub-reset-starter">${icon('reset')}${t('サンプルに戻す', 'Reset to sample')}</button>
+          <button type="button" class="tb-btn danger" id="hub-wipe">${icon('delete')}${t('すべて消去して空から始める', 'Erase all & start empty')}</button>
         </div>
       </div>
 
@@ -342,6 +347,7 @@ export async function initPage(appId) {
     renderNav();
     renderControls();
     applyStaticText();
+    hydrateIcons();
   };
   render();
   onPrefsChange((what) => what === 'lang' && render());

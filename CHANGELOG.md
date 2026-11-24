@@ -4,6 +4,38 @@ Versions follow [semver](https://semver.org/). The version lives in
 `site/js/core/version.js`; every release needs an entry here (CI checks it). Each
 deploy also carries a build id (commit hash), shown next to the version in the app.
 
+**Numbering (from 0.6.0):** every release bumps the patch number (0.6.1, 0.6.2, …,
+0.6.15 is fine). The minor number only moves for a milestone called out on purpose.
+
+## [0.6.1] — 2026-11-24 — Polish
+
+### Changed
+- New Japanese name: **漢字ネクサス** (was 漢字ネットワーク), shown in every page header,
+  the window title and the installed app.
+- New app icon: a kanji practice grid (田字格) at the hub of a colourful node network,
+  drawn as pure shapes so it renders the same everywhere, from the browser tab to the
+  home screen.
+- One font system: Latin letters and numbers come from a bundled Inter (identical on
+  every device), Japanese from the platform's best Japanese font; all buttons and
+  chips inherit it, and numbers use equal-width digits.
+- One icon set (Lucide) replaces emoji and text symbols throughout.
+- Desktop header streamlined: a prominent search field (/), one **Add** button
+  (word or kanji, also N / K), undo/redo, and a single **View** menu for display
+  toggles, link mode, fit and auto-arrange.
+- Tablets (iPad etc.) get the desktop layout with touch-sized controls and the
+  read-first inspector; the phone layout now starts below 700px wide.
+
+### Added
+- Context menu on the map: right-click, or long-press on touch, a node (open, edit,
+  link from here, center, delete) or empty space (add word/kanji here, fit,
+  auto-arrange).
+- Back-to-back entry: Enter saves the word or kanji and clears the form for the next
+  one (waiting a moment for the dictionary if needed); a running list shows what you
+  added; Done / Esc closes and shows the last one.
+- Reading fields format as you type: hiragana for readings and kun'yomi, katakana for
+  on'yomi; romaji converts live without an IME (kouzou → こうぞう); a double space
+  inserts ・ between readings.
+
 ## [0.6.0] — 2026-11-24 — Dictionary
 
 ### Added

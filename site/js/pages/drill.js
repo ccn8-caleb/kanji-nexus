@@ -1,6 +1,7 @@
 // SRS Drill page: SM-2 flashcards over every kanji and word in the shared graph.
 // Progress lives in its own storage key (core/srs.js); vocabulary is never modified here.
 
+import { icon } from '../core/icons.js';
 import { GRAMMAR_TAGS, LINK_TYPES, dictionaryLinks } from '../core/constants.js';
 import { escapeHtml, isKanji, joinReadings } from '../core/util.js';
 import { loadSrs, saveSrs, freshRecord, nextSm2 } from '../core/srs.js';
@@ -116,7 +117,7 @@ function renderEmpty(stage) {
   stage.innerHTML = `
     <div class="flashcard">
       <div class="done-state">
-        <div class="done-icon">🎉</div>
+        <div class="done-icon">${icon('check')}</div>
         <div class="done-title">${empty ? t('カードデータがありません', 'No Kanji or Vocabulary Found') : t('本日の復習が完了しました！', 'Session Complete!')}</div>
         <div class="done-sub">${
           empty
@@ -125,7 +126,7 @@ function renderEmpty(stage) {
         }</div>
         <div class="done-actions">
           ${!empty && !state.practiceAll ? `<button type="button" data-action="cram-now" class="primary-pill-btn">${t('全カード練習を始める', 'Practice All Cards Anyway')}</button>` : ''}
-          <button type="button" data-action="open-map" class="tb-btn">${t('マップを開く ↗', 'Open Map ↗')}</button>
+          <button type="button" data-action="open-map" class="tb-btn">${icon('map')}${t('マップを開く', 'Open Map')}</button>
         </div>
       </div>
     </div>`;
@@ -169,7 +170,7 @@ function renderBack(card) {
     box(
       t('外部辞書', 'Dictionary Lookup'),
       dictionaryLinks(card.label, card.kind)
-        .map((d) => `<a class="ctx-chip" href="${d.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(d.name)} ↗</a>`)
+        .map((d) => `<a class="ctx-chip" href="${d.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(d.name)}${icon('external')}</a>`)
         .join('')
     )
   );
@@ -239,7 +240,7 @@ function renderCard() {
           <span class="type-badge ${card.kind === 'kanji' ? 'primary' : 'secondary'}">${card.kind === 'kanji' ? t('親漢字', 'Primary Kanji') : t('熟語・語彙', 'Compound / Vocab')}</span>
           <span class="srs-state-badge">${status}</span>
         </div>
-        <button type="button" class="jump-map-btn" data-jump-id="${escapeHtml(card.id)}">${t('マップで確認 ↗', 'View in Map ↗')}</button>
+        <button type="button" class="jump-map-btn" data-jump-id="${escapeHtml(card.id)}">${icon('map')}${t('マップで確認', 'View in Map')}</button>
       </div>
       <div class="card-center" data-action="flip">${front}</div>
       ${state.flipped ? renderBack(card) : ''}

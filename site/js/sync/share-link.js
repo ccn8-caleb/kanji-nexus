@@ -83,8 +83,8 @@ async function importFromFragment({ store, toast, t }) {
 export default {
   id: 'share-link',
   async install(ctx) {
-    ctx.registerDataAction({ id: 'share-link', section: 'transfer', ja: '🔗 転送リンクを作成', en: '🔗 Create transfer link', run: copyTransferLink });
-    ctx.registerDataAction({ id: 'share-file', section: 'transfer', ja: '📤 ファイルを共有', en: '📤 Share file', run: shareFile });
+    ctx.registerDataAction({ id: 'share-link', section: 'transfer', icon: 'link', ja: '転送リンクを作成', en: 'Create transfer link', run: copyTransferLink });
+    ctx.registerDataAction({ id: 'share-file', section: 'transfer', icon: 'share', ja: 'ファイルを共有', en: 'Share file', run: shareFile });
     await importFromFragment(ctx);
   },
 };

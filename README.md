@@ -1,4 +1,4 @@
-# Kanji Nexus (漢字ネットワーク)
+# Kanji Nexus（漢字ネクサス）
 
 An in-browser, zero-backend suite for mapping, analyzing, and drilling Japanese **kanji (漢字)** and **compounds (熟語・語彙)**. It turns a personal vocabulary notebook into a connected graph, which helps you spot shared character patterns, organize word relationships, and reinforce active recall.
 
@@ -9,6 +9,12 @@ Everything runs client-side from static files. There are no accounts, no server,
 | **Map** (`index.html`) | Interactive canvas of kanji and their compounds. It uses progressive disclosure, typed links between words, 3-tier auto-arrange, and an inspector with undo/redo. |
 | **Stats & Index** (`stats.html`) | Top kanji hubs, tag and link breakdowns, and a searchable gojūon (あ〜わ) and cluster index. Any entry jumps to the map. |
 | **SRS Drill** (`drill.html`) | SM-2 flashcards, Kanji → Reading or Reading → Kanji (homophones are masked as `〇〇`), with tag filters and map context. |
+
+### Desktop & tablet
+
+* **Header:** search (`/`), one **Add** button for words or kanji (also `N` / `K`), undo/redo, and a **View** menu for display toggles, link mode, fit and auto-arrange. Data, language and theme sit at the right, or under ⋯ on narrower screens.
+* **Context menu:** right-click (or long-press on touch) a node to open, edit, link from it, center it or delete it, or empty space to add a word or kanji right there.
+* **Tablets** (wider than 700px with a touch screen) keep this layout but with touch-sized controls and the read-first inspector.
 
 ### On phones
 
@@ -31,6 +37,8 @@ Typing a new word in the add form looks it up in a built-in **JMdict** dictionar
 * **Where it shows:** the meaning is stored in the word's `meaning` field and shown in the inspector, stats index and drill. On the Reading → Kanji side of the drill it's a hint for telling homophones apart. Search covers meanings ("structure" finds 構造).
 * **No server involved.** At deploy time CI downloads the latest [jmdict-simplified](https://github.com/scriptin/jmdict-simplified) release and `kanjinexus dict build` splits it into one small file per first character under `site/dict/` (built only, not committed). The app fetches just the file it needs; files you've used keep working offline.
 * **Local development:** without `site/dict/` the lookup simply stays quiet. To try it locally, download a `jmdict-eng-*.json.tgz` release, extract it, and run `go run ./tools/kanjinexus dict build <jmdict-eng.json> site/dict`.
+
+Fonts & icons: Latin text uses a subset of [Inter](https://rsms.me/inter/) (SIL Open Font License, `site/fonts/inter-LICENSE.txt`); icons are from [Lucide](https://lucide.dev) (ISC).
 
 Dictionary data: [JMdict](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project), property of the Electronic Dictionary Research and Development Group, used under its [licence](https://www.edrdg.org/edrdg/licence.html) (CC BY-SA 4.0).
 
@@ -132,6 +140,8 @@ To update the starter sample from the app: edit it in the browser, then **💾 D
 
 ## Versions & deploys
 
+* **Branches:** work happens on feature branches merged into **`development`**, which collects the next release. Pushes and PRs to `development` run the checks (lint, formatting, changelog entry) but never deploy. A release is a PR (or fast-forward) from `development` into **`master`**; every push to `master` builds and deploys to GitHub Pages.
+
 * **App version:** semver, in `site/js/core/version.js`. To release, bump `APP_VERSION` and add a `## [x.y.z]` entry to [CHANGELOG.md](CHANGELOG.md). CI refuses to deploy a version that has no changelog entry.
 * **Build id:** at deploy, `tools/stamp-deploy.sh` stamps the commit hash and date. The app shows both at the bottom of the 💾 Data panel and the ⋯ sheet (e.g. `v0.5.0 · build e9a6960 · 2026-11-24`). The first time a device opens a new version, it shows an "Updated to vX.Y.Z" notice linking to the changelog.
 * **What's live:** `curl -s https://kanjinexus.concatn8.com/ | grep app-version` prints e.g. `0.5.0+e9a6960c1b2d`. In the browser console, `KANJI_NEXUS_VERSION` shows the same.
@@ -155,7 +165,9 @@ site/
     store.js       owns the doc: load, undo/redo, persist, import/reset/wipe, cross-tab sync
     srs.js         SM-2 scheduling and progress storage
     prefs.js       language + theme (shared across pages and tabs)
-    ui.js          toast/snackbar, modals & bottom sheets, phone breakpoint, keyboard offset, tooltips
+    ui.js          toast/snackbar, modals & bottom sheets, popover/context menus, layout modes, tooltips
+    icons.js       the app's icon set (Lucide, ISC) as inline SVG
+    kana.js        reading fields: romaji → kana, hiragana/katakana, double space → ・
     ime.js         reading capture from IME composition, Enter-to-next-field
     pwa.js         service-worker registration, install prompt
     hub.js         page shell: nav, header controls, Data panel, deep links

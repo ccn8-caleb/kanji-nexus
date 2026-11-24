@@ -5,44 +5,10 @@ html, body {
   overflow: hidden;
 }
 
-.toolbar-scroll {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  padding: 2px 0;
-}
 
-.toolbar-scroll::-webkit-scrollbar {
-  display: none;
-}
 
-.tb-btn.link-active {
-  background: #f59e0b;
-  border-color: #f59e0b;
-  color: #ffffff;
-}
 
-#map-search-input {
-  width: 135px;
-  padding: 5px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-elevated);
-  color: var(--text-main);
-  font-size: 12px;
-  outline: none;
-  transition: border-color 0.15s, width 0.2s;
-}
 
-#map-search-input:focus {
-  border-color: var(--accent-primary);
-  width: 165px;
-  background: var(--bg-surface);
-}
 
 /* Tag Filter Bar */
 #tag-filter-bar {
@@ -566,11 +532,6 @@ html, body {
   font-size: 12px;
   font-weight: 600;
 }
-.zoom-btn.wide {
-  width: auto;
-  padding: 0 8px;
-  font-size: 11px;
-}
 .label-input {
   font-size: 20px;
   font-weight: 800;
@@ -655,32 +616,15 @@ html, body {
 }
 
 /* Phone-only map controls are hidden on desktop. */
-.mobile-actions,
 #m-search,
 #fab-wrap,
 .sheet-grab {
   display: none;
 }
-.icon-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-surface);
-  color: var(--text-main);
-  font-size: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-.icon-btn:disabled {
-  opacity: 0.35;
-}
 
 /* ================= PHONES ================= */
-@media (max-width: 768px) {
-  .toolbar-scroll,
+@media (max-width: 699px) {
+  .map-actions,
   .map-stats-pill {
     display: none;
   }
@@ -925,4 +869,96 @@ html, body {
 .hint-chip.active {
   background: var(--accent-primary);
   color: #fff;
+}
+
+/* ================= HEADER ACTIONS (desktop & tablet) ================= */
+@media (min-width: 700px) {
+  .map-actions {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .mobile-actions {
+    display: none;
+  }
+}
+#btn-view-menu.active {
+  color: #b45309;
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+}
+.zoom-btn .icon {
+  width: 17px;
+  height: 17px;
+}
+.link-mode-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#fab .icon {
+  width: 28px;
+  height: 28px;
+}
+.fab-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.fab-option .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--accent-primary);
+}
+.dict-link .icon,
+.summary-actions .icon {
+  width: 15px;
+  height: 15px;
+}
+.dict-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.dict-status .icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Tablets: desktop layout with touch-sized targets */
+@media (min-width: 700px) and (pointer: coarse) {
+  #inspector-panel {
+    width: 390px;
+  }
+  .filter-pill {
+    padding: 7px 13px;
+    font-size: 13px;
+  }
+  #tag-filter-bar {
+    height: 46px;
+  }
+  #canvas-container,
+  #inspector-panel {
+    top: calc(var(--header-total) + 46px);
+  }
+  .kanji-chip,
+  .dict-link,
+  .hint-chip,
+  .tag-toggle {
+    min-height: 40px;
+    font-size: 14px;
+  }
+  .zoom-btn {
+    width: 44px;
+    height: 42px;
+  }
+  .node-secondary::after {
+    content: '';
+    position: absolute;
+    inset: -10px -6px;
+  }
 }

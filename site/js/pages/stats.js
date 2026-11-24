@@ -1,6 +1,7 @@
 // Stats & Index page: KPIs, top kanji hubs, tag/link breakdowns, and a searchable
 // gojūon / cluster index. Read-only view over the shared graph.
 
+import { icon } from '../core/icons.js';
 import { GRAMMAR_TAGS, LINK_TYPES, KANA_ROWS } from '../core/constants.js';
 import { escapeHtml, toHiragana, fold, joinReadings } from '../core/util.js';
 import { t, tr, onPrefsChange } from '../core/prefs.js';
@@ -139,7 +140,7 @@ function kanjiCard(graph, k) {
             <div class="entry-reading">${escapeHtml(kanjiReadingFull(k) || t('読み未登録', 'No reading saved'))}</div>
           </div>
         </div>
-        <span class="jump-pill">${t('マップ ↗', 'Map ↗')}</span>
+        <span class="jump-pill">${t('マップ', 'Map')}${icon('external')}</span>
       </div>
       ${kids.length ? `<div class="mini-chips">${kids.slice(0, 8).map((w) => `<span class="mini-chip" data-jump-id="${escapeHtml(w.id)}">${escapeHtml(w.label)}</span>`).join('')}</div>` : ''}
       ${k.notes ? `<div class="entry-note">${escapeHtml(k.notes)}</div>` : ''}
@@ -159,7 +160,7 @@ function wordCard(graph, w) {
             <div class="entry-reading">${escapeHtml(w.reading || '—')}</div>
           </div>
         </div>
-        <span class="jump-pill">${t('マップ ↗', 'Map ↗')}</span>
+        <span class="jump-pill">${t('マップ', 'Map')}${icon('external')}</span>
       </div>
       ${w.meaning ? `<div class="entry-meaning">${escapeHtml(w.meaning)}</div>` : ''}
       <div class="mini-chips">
