@@ -1,7 +1,8 @@
 /* Drill page. */
 body {
   min-height: 100vh;
-  padding-top: var(--header-h);
+  padding-top: var(--header-total);
+  padding-bottom: var(--tabbar-h);
 }
 
 /* ================= LAYOUT ================= */
@@ -521,4 +522,109 @@ body {
 }
 .chip-list.centered {
   justify-content: center;
+}
+
+/* ================= COLLAPSIBLE CONTROLS ================= */
+.controls-summary {
+  display: none;
+}
+.controls-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.progress-card {
+  padding: 0 4px;
+}
+
+/* ================= PHONES ================= */
+@media (max-width: 768px) {
+  .container {
+    padding: 10px 12px calc(110px + env(safe-area-inset-bottom, 0px));
+    gap: 10px;
+  }
+
+  /* Four small counters in one row instead of a 2×2 block. */
+  .status-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .stat-box {
+    padding: 6px 8px;
+    border-radius: 10px;
+  }
+  .stat-label {
+    font-size: 9.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .stat-num {
+    font-size: 18px;
+  }
+
+  .controls-card {
+    padding: 0;
+    gap: 0;
+  }
+  .controls-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 700;
+    list-style: none;
+    cursor: pointer;
+  }
+  .controls-summary::-webkit-details-marker {
+    display: none;
+  }
+  .controls-card[open] .controls-chevron {
+    transform: rotate(180deg);
+  }
+  .controls-body {
+    padding: 4px 12px 12px;
+  }
+  .seg-btn {
+    min-height: 38px;
+  }
+
+  .flashcard {
+    padding: 16px;
+  }
+
+  /* Answer controls sit in the thumb zone, above the tab bar, on every card. */
+  .reveal-btn-full,
+  .rating-grid {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--tabbar-h) + 10px);
+    width: auto;
+    z-index: 900;
+  }
+  .reveal-btn-full {
+    min-height: 54px;
+    font-size: 16px;
+    box-shadow: 0 8px 22px rgba(37, 99, 235, 0.32);
+  }
+  .rating-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 6px;
+    border-radius: 14px;
+    background: var(--bg-page);
+    box-shadow: 0 -4px 18px rgba(15, 23, 42, 0.1);
+  }
+  .rate-btn {
+    min-height: 56px;
+    padding: 6px 4px;
+  }
+  /* 1–4 are keyboard shortcuts: noise on a touch screen. */
+  .rate-key {
+    display: none;
+  }
 }

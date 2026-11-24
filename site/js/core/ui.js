@@ -3,20 +3,73 @@
 import { getLang } from './prefs.js';
 
 // ---------------------------------------------------------------------------
-// Toast
+// Compact (phone) layout: one breakpoint shared by CSS (max-width: 768px) and JS.
+// ---------------------------------------------------------------------------
+const compactQuery = matchMedia('(max-width: 768px)');
+export const isCompact = () => compactQuery.matches;
+export const onCompactChange = (fn) => compactQuery.addEventListener('change', fn);
+
+// On-screen keyboards shrink the *visual* viewport but not fixed-position layout on
+// iOS, so bottom sheets read --kb-offset to stay above the keyboard.
+if (window.visualViewport) {
+  const vv = window.visualViewport;
+  const update = () => {
+    const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    document.documentElement.style.setProperty('--kb-offset', `${Math.round(offset)}px`);
+    document.documentElement.classList.toggle('keyboard-open', offset > 80);
+  };
+  vv.addEventListener('resize', update);
+  vv.addEventListener('scroll', update);
+  update();
+}
+
+// ---------------------------------------------------------------------------
+// Toast / snackbar: toast(msg) or toast(msg, { action: { label, run } })
 // ---------------------------------------------------------------------------
 let toastEl = null;
 let toastTimer = null;
-export function toast(msg) {
+export function toast(msg, { action } = {}) {
   if (!toastEl) {
     toastEl = document.createElement('div');
     toastEl.className = 'toast-banner';
+    toastEl.setAttribute('role', 'status');
     document.body.appendChild(toastEl);
   }
   toastEl.textContent = msg;
+  toastEl.classList.toggle('has-action', Boolean(action));
+  if (action) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'toast-action';
+    btn.textContent = action.label;
+    btn.addEventListener('click', () => {
+      toastEl.classList.remove('visible');
+      action.run();
+    });
+    toastEl.appendChild(btn);
+  }
   toastEl.classList.add('visible');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove('visible'), 2400);
+  toastTimer = setTimeout(() => toastEl.classList.remove('visible'), action ? 5000 : 2400);
+}
+
+// ---------------------------------------------------------------------------
+// Swipe gestures on a sheet's grab area: onDown / onUp fire after a 60px drag.
+// ---------------------------------------------------------------------------
+export function bindSwipe(handle, { onDown, onUp }) {
+  let startY = null;
+  handle.addEventListener('touchstart', (e) => (startY = e.touches[0].clientY), { passive: true });
+  handle.addEventListener(
+    'touchend',
+    (e) => {
+      if (startY == null) return;
+      const dy = e.changedTouches[0].clientY - startY;
+      startY = null;
+      if (dy > 60) onDown?.();
+      else if (dy < -60) onUp?.();
+    },
+    { passive: true }
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -32,6 +85,25 @@ document.addEventListener('click', (e) => {
   if (closer) closeModal(closer.dataset.closeModal);
   else if (e.target.classList?.contains('modal-backdrop')) e.target.classList.remove('open');
 });
+// On phones modals are bottom sheets: swiping their title bar down closes them.
+let sheetSwipe = null;
+document.addEventListener(
+  'touchstart',
+  (e) => {
+    const title = e.target.closest?.('.modal-backdrop.open .modal-title');
+    sheetSwipe = title ? { y: e.touches[0].clientY, backdrop: title.closest('.modal-backdrop') } : null;
+  },
+  { passive: true }
+);
+document.addEventListener(
+  'touchend',
+  (e) => {
+    if (sheetSwipe && e.changedTouches[0].clientY - sheetSwipe.y > 80 && isCompact()) sheetSwipe.backdrop.classList.remove('open');
+    sheetSwipe = null;
+  },
+  { passive: true }
+);
+
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   const open = [...document.querySelectorAll('.modal-backdrop.open')].pop();

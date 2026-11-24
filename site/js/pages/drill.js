@@ -5,7 +5,7 @@ import { GRAMMAR_TAGS, LINK_TYPES, dictionaryLinks } from '../core/constants.js'
 import { escapeHtml, isKanji, joinReadings } from '../core/util.js';
 import { loadSrs, saveSrs, freshRecord, nextSm2 } from '../core/srs.js';
 import { t, tr, onPrefsChange, applyStaticText } from '../core/prefs.js';
-import { isTyping } from '../core/ui.js';
+import { isTyping, isCompact, onCompactChange } from '../core/ui.js';
 import { initPage, navigate, openInMap } from '../core/hub.js';
 
 const $ = (id) => document.getElementById(id);
@@ -97,6 +97,12 @@ function renderControls() {
   $('drill-tag-pills').innerHTML = pills
     .map((p) => `<button type="button" class="tag-pill${state.tagFilter === p.id ? ' active' : ''}" data-dtag="${p.id}">${tr(p)}</button>`)
     .join('');
+
+  // One-line summary shown on phones while the filters are folded away.
+  const deck = { all: t('すべて', 'All'), word: t('熟語', 'Words'), kanji: t('漢字', 'Kanji') }[state.deckType];
+  const dir = state.direction === 'kanji-to-reading' ? t('漢字→読み', 'Kanji→Reading') : t('読み→漢字', 'Reading→Kanji');
+  const tag = state.tagFilter === 'all' ? '' : ` · ${tr(GRAMMAR_TAGS.find((g) => g.id === state.tagFilter))}`;
+  $('controls-summary-text').textContent = `${deck} · ${dir}${tag}${state.practiceAll ? ` · ${t('全カード', 'All cards')}` : ''}`;
 
   const total = state.done + state.queue.length;
   $('session-progress-fill').style.width = `${total ? Math.round((state.done / total) * 100) : 100}%`;
@@ -220,7 +226,7 @@ function renderCard() {
   ];
   const footer = state.flipped
     ? `<div class="rating-grid">${ratings
-        .map(([q, label, cls]) => `<button type="button" class="rate-btn ${cls}" data-rate="${q}"><span class="rate-title">${q} · ${label}</span><span class="rate-int">${intervalLabel(nextSm2(rec, q).interval)}</span></button>`)
+        .map(([q, label, cls]) => `<button type="button" class="rate-btn ${cls}" data-rate="${q}"><span class="rate-title"><span class="rate-key">${q} · </span>${label}</span><span class="rate-int">${intervalLabel(nextSm2(rec, q).interval)}</span></button>`)
         .join('')}</div>`
     : `<button type="button" data-action="flip" class="reveal-btn-full">${t('答えを表示する (Space)', 'Show Answer (Space)')}</button>`;
 
@@ -314,6 +320,16 @@ document.addEventListener('keydown', (e) => {
 });
 
 // New or edited vocabulary (this tab via import, or another tab) re-syncs the deck.
+// Filters are always open on desktop and folded behind the summary on phones.
+const controls = $('drill-controls');
+const syncControls = () => (controls.open = !isCompact());
+onCompactChange(syncControls);
+syncControls();
+// Picking a filter on a phone folds the panel again so the card is back in view.
+controls.addEventListener('click', (e) => {
+  if (isCompact() && e.target.closest('[data-deck-type], [data-dir]')) controls.open = false;
+});
+
 store.subscribe(() => refilter({}));
 onPrefsChange(renderAll);
 refilter({});

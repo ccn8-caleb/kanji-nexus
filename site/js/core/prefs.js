@@ -41,6 +41,11 @@ function applyToDocument() {
   html.setAttribute('data-theme', theme);
   html.setAttribute('data-lang', lang);
   html.setAttribute('lang', lang);
+  // Browser chrome / status bar colour follows the app theme, not just the OS setting.
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+    m.removeAttribute('media');
+    m.content = theme === 'dark' ? '#0f172a' : '#ffffff';
+  });
   applyStaticText();
 }
 

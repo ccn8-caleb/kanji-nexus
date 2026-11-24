@@ -20,6 +20,11 @@
   --shadow-md: 0 6px 18px rgba(15, 23, 42, 0.12);
   --shadow-lg: 0 14px 34px rgba(15, 23, 42, 0.18);
   --header-h: 54px;
+  /* Header height including the notch / status-bar inset on phones. */
+  --header-total: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+  /* Bottom tab bar height (0 on desktop, set in the phone media query). */
+  --tabbar-h: 0px;
+  --kb-offset: 0px;
   --font: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
@@ -68,7 +73,8 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: var(--header-h);
+  height: var(--header-total);
+  padding-top: env(safe-area-inset-top, 0px) !important;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-color);
   display: flex;
@@ -323,6 +329,13 @@ details[open] > summary.field-label::before {
   color: var(--text-muted);
 }
 
+/* ================= FORM HINTS ================= */
+.field-hint {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-secondary);
+}
+
 /* ================= MODALS ================= */
 .modal-backdrop {
   position: fixed;
@@ -437,3 +450,214 @@ details[open] > summary.field-label::before {
 .sync-detail.warn { color: #b45309; }
 .sync-detail.error { color: var(--danger); }
 .choose-message { white-space: pre-line; }
+
+.toast-banner.has-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+}
+.toast-action {
+  border: none;
+  background: transparent;
+  color: #93c5fd;
+  font: inherit;
+  font-weight: 800;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+
+/* ================= MENU ROWS (⋯ sheet, tools sheets) ================= */
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 50px;
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.menu-row:last-child {
+  border-bottom: none;
+}
+.menu-row:active:not(.static) {
+  background: var(--bg-elevated);
+}
+.menu-row .switch {
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--border-color);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.menu-row .switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s;
+}
+.menu-row.on .switch {
+  background: var(--accent-primary);
+}
+.menu-row.on .switch::after {
+  transform: translateX(18px);
+}
+
+/* ================= BOTTOM TAB BAR (phones only) ================= */
+.hub-tabbar {
+  display: none;
+}
+
+/* ================= PHONES ================= */
+@media (max-width: 768px) {
+  :root {
+    --header-h: 50px;
+    --tabbar-h: calc(58px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Navigation and global controls move to the tab bar and the ⋯ sheet. */
+  #nexus-hub-slot,
+  #nexus-hub-controls {
+    display: none;
+  }
+  .hub-tabbar {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--tabbar-h);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-color);
+    box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.06);
+    z-index: 1000;
+  }
+  .keyboard-open .hub-tabbar {
+    display: none;
+  }
+  .hub-tab {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hub-tab-icon {
+    font-size: 20px;
+    line-height: 1.1;
+  }
+  .hub-tab.active {
+    color: var(--accent-primary);
+  }
+  .hub-tab.active .hub-tab-icon {
+    transform: translateY(-1px);
+  }
+  .hub-tab .sync-badge {
+    position: absolute;
+    top: 4px;
+    left: calc(50% + 8px);
+    margin: 0;
+  }
+
+  #top-bar {
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+
+  /* iOS zooms into inputs smaller than 16px. */
+  input,
+  textarea,
+  select,
+  .field-input,
+  .field-textarea,
+  .field-select {
+    font-size: 16px;
+  }
+
+  /* Modals become bottom sheets that ride above the on-screen keyboard. */
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+    padding-bottom: var(--kb-offset);
+  }
+  .modal-card,
+  .modal-card.wide {
+    max-width: none;
+    border-radius: 18px 18px 0 0;
+    border-bottom: none;
+    max-height: calc(100dvh - var(--kb-offset) - env(safe-area-inset-top, 0px) - 24px);
+    padding: 10px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    animation: sheet-up 0.22s ease-out;
+  }
+  .keyboard-open .modal-card {
+    padding-bottom: 12px;
+  }
+  .modal-card::before {
+    content: '';
+    align-self: center;
+    width: 38px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--border-color);
+    flex-shrink: 0;
+  }
+  .modal-actions .tb-btn {
+    min-height: 44px;
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+
+  .toast-banner {
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--tabbar-h) + 12px);
+    font-size: 13px;
+    justify-content: space-between;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(40px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

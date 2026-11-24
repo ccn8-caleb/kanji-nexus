@@ -1,17 +1,19 @@
 // Map page entry: view state, toolbar, add-modals, link mode, keyboard, startup.
 
 import { GRAMMAR_TAGS, LINK_TYPES } from '../../core/constants.js';
-import { escapeHtml, extractKanji, splitReadings, labelOf } from '../../core/util.js';
+import { escapeHtml, extractKanji, splitReadings, labelOf, fold, joinReadings, debounce } from '../../core/util.js';
 import { kanjiId, wordId, buildGraph as buildGraphFor } from '../../core/graph.js';
 import * as ops from '../../core/ops.js';
 import { t, tr, onPrefsChange, applyStaticText } from '../../core/prefs.js';
-import { toast, openModal, closeModal, bindImeField, isTyping, anyModalOpen } from '../../core/ui.js';
+import { toast, openModal, closeModal, bindImeField, isTyping, anyModalOpen, isCompact } from '../../core/ui.js';
 import { initPage, registerDataAction } from '../../core/hub.js';
+import { trackImeReading, bindEnterFlow } from '../../core/ime.js';
 import { createCanvas } from './canvas.js';
-import { renderInspector } from './inspector.js';
+import { renderInspector, initInspectorGestures } from './inspector.js';
 import { placeMissing, autoArrange, findFreePosition, wordAnchor, getPos, setPos } from './layout.js';
 
 const VIEW_PREFS_KEY = 'kanji_nexus_map_view';
+const CAMERA_KEY = 'kanji_nexus_map_camera';
 const $ = (id) => document.getElementById(id);
 
 const { store, focusId } = await initPage('map');
@@ -30,6 +32,8 @@ const view = {
   activeLinkType: 'antonym',
   tagFilter: 'all',
   search: '',
+  inspectorMode: 'summary', // phones: 'summary' (read-first) | 'edit'
+  sheetFull: false, // phones: bottom sheet expanded
 };
 const PERSISTED = ['revealAll', 'showReadings', 'autoLink', 'autoCreateKanji'];
 try {
@@ -49,10 +53,18 @@ const canvas = createCanvas({
   view,
   onTap: handleNodeTap,
   onBackgroundTap: () => {
+    closeFabMenu();
     if (view.selectedId) select(null);
   },
+  // Remember where the map was so it reopens there.
+  onCameraChange: debounce((cam) => {
+    try {
+      localStorage.setItem(CAMERA_KEY, JSON.stringify(cam));
+    } catch (_) {}
+  }, 400),
 });
-const ctx = { store, view, canvas, select };
+const ctx = { store, view, canvas, select, startLink };
+initInspectorGestures(ctx);
 
 function renderFilterBar() {
   const pills = [{ id: 'all', ja: 'すべて', en: 'All' }, ...GRAMMAR_TAGS];
@@ -79,6 +91,7 @@ function renderToolbar() {
   $('btn-toggle-link-mode').classList.toggle('link-active', view.linkMode);
   $('btn-undo').disabled = !store.canUndo;
   $('btn-redo').disabled = !store.canRedo;
+  $('m-btn-undo').disabled = !store.canUndo;
   applyStaticText($('top-bar'));
 }
 
@@ -90,7 +103,12 @@ function renderAll({ inspector = true } = {}) {
 }
 
 function select(id, { center = false } = {}) {
-  view.selectedId = id && store.graph.node(id) ? id : null;
+  const next = id && store.graph.node(id) ? id : null;
+  if (next !== view.selectedId) {
+    view.inspectorMode = 'summary';
+    view.sheetFull = false;
+  }
+  view.selectedId = next;
   renderAll();
   if (center && view.selectedId) {
     const pos = getPos(store.doc, view.selectedId);
@@ -121,7 +139,9 @@ onPrefsChange(() => {
 // Taps & link mode
 // ---------------------------------------------------------------------------
 function handleNodeTap(id) {
-  if (!view.linkMode) return select(view.selectedId === id ? null : id);
+  closeFabMenu();
+  // Phones: the sheet covers the lower half, so bring the tapped node into view.
+  if (!view.linkMode) return select(view.selectedId === id ? null : id, { center: isCompact() });
 
   const graph = store.graph;
   if (!graph.words.has(id)) return toast(t('熟語ノードを選択してください', 'Select a compound node to link'));
@@ -154,6 +174,15 @@ function renderLinkModeBar() {
     .join('');
 }
 
+// From the phone summary's 🔗 button: start link mode with this word as the source.
+function startLink(wid) {
+  setLinkMode(true);
+  view.linkSourceId = wid;
+  view.selectedId = null; // close the sheet so the map is visible
+  renderLinkModeBar();
+  renderAll();
+}
+
 function setLinkMode(on) {
   view.linkMode = on;
   view.linkSourceId = null;
@@ -168,7 +197,7 @@ function setLinkMode(on) {
 $('btn-open-add-primary').addEventListener('click', () => {
   ['new-primary-label', 'new-primary-onyomi', 'new-primary-kunyomi', 'new-primary-notes'].forEach((id) => ($(id).value = ''));
   openModal('modal-add-primary');
-  setTimeout(() => $('new-primary-label').focus(), 50);
+  $('new-primary-label').focus(); // synchronous: iOS only opens the keyboard during the tap
 });
 
 $('btn-confirm-add-primary').addEventListener('click', () => {
@@ -215,13 +244,36 @@ $('new-sec-label').addEventListener('input', (e) => {
     .join('');
 });
 
+// Reading is filled from the IME's kana while typing the word, until you edit it yourself.
+let readingAuto = true;
+const imeReading = trackImeReading($('new-sec-label'), (reading) => {
+  if (!readingAuto) return;
+  // null = capture gave up (word edited by hand): keep what's there for the user to
+  // fix, unless the word itself was cleared.
+  if (reading == null && $('new-sec-label').value) {
+    $('new-sec-reading-hint').hidden = true;
+    return;
+  }
+  $('new-sec-reading').value = reading || '';
+  $('new-sec-reading-hint').hidden = !reading;
+});
+$('new-sec-reading').addEventListener('input', (e) => {
+  readingAuto = !e.target.value;
+  $('new-sec-reading-hint').hidden = true;
+});
+bindEnterFlow([$('new-sec-label'), $('new-sec-reading'), $('new-sec-notes')], () => $('btn-confirm-add-secondary').click());
+bindEnterFlow([$('new-primary-label'), $('new-primary-onyomi'), $('new-primary-kunyomi'), $('new-primary-notes')], () => $('btn-confirm-add-primary').click());
+
 $('btn-open-add-secondary').addEventListener('click', () => {
   ['new-sec-label', 'new-sec-reading', 'new-sec-notes'].forEach((id) => ($(id).value = ''));
+  readingAuto = true;
+  imeReading.reset();
+  $('new-sec-reading-hint').hidden = true;
   $('new-sec-kanji-preview').innerHTML = '';
   modalTags = new Set();
   renderModalTags();
   openModal('modal-add-secondary');
-  setTimeout(() => $('new-sec-label').focus(), 50);
+  $('new-sec-label').focus(); // synchronous: iOS only opens the keyboard during the tap
 });
 
 $('btn-confirm-add-secondary').addEventListener('click', () => {
@@ -294,7 +346,9 @@ $('btn-auto-arrange').addEventListener('click', () => {
   toast(t('クラスター別に自動整列しました', 'Auto-arranged clusters'));
 });
 
-$('btn-undo').addEventListener('click', () => store.undo() && toast(t('操作を元に戻しました', 'Undid last action')));
+const undo = () => store.undo() && toast(t('操作を元に戻しました', 'Undid last action'));
+$('btn-undo').addEventListener('click', undo);
+$('m-btn-undo').addEventListener('click', undo);
 $('btn-redo').addEventListener('click', () => store.redo() && toast(t('操作をやり直しました', 'Redid action')));
 
 $('tag-filter-pills').addEventListener('click', (e) => {
@@ -332,6 +386,105 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Phone controls: ＋ button, tools sheet, search overlay
+// ---------------------------------------------------------------------------
+function closeFabMenu() {
+  $('fab-menu').hidden = true;
+  $('fab').classList.remove('open');
+}
+$('fab').addEventListener('click', () => {
+  const open = $('fab-menu').hidden;
+  $('fab-menu').hidden = !open;
+  $('fab').classList.toggle('open', open);
+});
+$('fab-menu').addEventListener('click', (e) => {
+  const which = e.target.closest('[data-fab]')?.dataset.fab;
+  if (!which) return;
+  closeFabMenu();
+  $(which === 'word' ? 'btn-open-add-secondary' : 'btn-open-add-primary').click();
+});
+
+const TOOL_TOGGLES = [
+  ['revealAll', '全体表示（すべての熟語を表示）', 'Reveal all words'],
+  ['showReadings', '読みを表示', 'Show readings'],
+  ['autoLink', '派生語を自動リンク', 'Auto-link derivatives'],
+  ['autoCreateKanji', '未登録の漢字を自動作成', 'Auto-create missing kanji'],
+];
+function renderToolsSheet() {
+  const toggles = TOOL_TOGGLES.map(
+    ([key, ja, en]) => `<button type="button" class="menu-row${view[key] ? ' on' : ''}" data-tool-toggle="${key}"><span>${t(ja, en)}</span><span class="switch"></span></button>`
+  ).join('');
+  $('map-tools-list').innerHTML = `${toggles}
+    <button type="button" class="menu-row" data-tool="link"><span>🔗 ${t('リンク接続モード', 'Link mode')}</span></button>
+    <button type="button" class="menu-row" data-tool="fit"><span>⤢ ${t('全体を表示', 'Show everything')}</span></button>
+    <button type="button" class="menu-row" data-tool="arrange"><span>✨ ${t('自動整列', 'Auto-arrange')}</span></button>
+    <button type="button" class="menu-row" data-tool="redo" ${store.canRedo ? '' : 'disabled'}><span>↪ ${t('やり直す', 'Redo')}</span></button>`;
+}
+$('m-btn-tools').addEventListener('click', () => {
+  renderToolsSheet();
+  openModal('modal-map-tools');
+});
+$('map-tools-list').addEventListener('click', (e) => {
+  const key = e.target.closest('[data-tool-toggle]')?.dataset.toolToggle;
+  if (key) {
+    toggle(key)();
+    return renderToolsSheet();
+  }
+  const tool = e.target.closest('[data-tool]')?.dataset.tool;
+  if (!tool) return;
+  closeModal('modal-map-tools');
+  if (tool === 'link') setLinkMode(true);
+  else if (tool === 'fit') canvas.fit();
+  else if (tool === 'arrange') $('btn-auto-arrange').click();
+  else if (tool === 'redo') store.redo();
+});
+
+function renderSearchResults() {
+  const q = fold($('m-search-input').value.trim());
+  const g = store.graph;
+  if (!q) {
+    $('m-search-results').innerHTML = `<div class="muted pad">${t('漢字・熟語・読み・メモで検索できます', 'Search by kanji, word, reading or notes')}</div>`;
+    return;
+  }
+  const rows = [];
+  for (const k of g.kanji.values()) {
+    const hay = fold(`${k.label} ${joinReadings(k.on)} ${joinReadings(k.kun)} ${k.notes}`);
+    if (hay.includes(q)) rows.push({ node: k, sub: [joinReadings(k.on), joinReadings(k.kun)].filter(Boolean).join(' ／ '), exact: k.label === q, kind: t('漢字', 'Kanji') });
+  }
+  for (const w of g.words.values()) {
+    const hay = fold(`${w.label} ${w.reading} ${w.notes}`);
+    if (hay.includes(q)) rows.push({ node: w, sub: w.reading, exact: w.label === q || fold(w.reading) === q, kind: t('語', 'Word') });
+  }
+  rows.sort((a, b) => Number(b.exact) - Number(a.exact));
+  $('m-search-results').innerHTML = rows.length
+    ? rows
+        .slice(0, 40)
+        .map(({ node, sub, kind }) => `<button type="button" class="m-result" data-result="${escapeHtml(node.id)}">
+            <span class="m-result-label">${escapeHtml(node.label)}</span><span class="m-result-sub">${escapeHtml(sub || '')}</span><span class="m-result-kind">${kind}</span></button>`)
+        .join('')
+    : `<div class="muted pad">${t('見つかりません', 'No matches')}</div>`;
+}
+function closeSearch() {
+  $('m-search').hidden = true;
+  $('m-search-input').blur();
+}
+$('m-btn-search').addEventListener('click', () => {
+  $('m-search').hidden = false;
+  renderSearchResults();
+  $('m-search-input').focus();
+});
+$('m-search-close').addEventListener('click', closeSearch);
+bindImeField($('m-search-input'), renderSearchResults);
+$('m-search-results').addEventListener('click', (e) => {
+  const id = e.target.closest('[data-result]')?.dataset.result;
+  if (!id) return;
+  closeSearch();
+  view.search = '';
+  view.tagFilter = 'all';
+  select(id, { center: true });
+});
+
 registerDataAction({
   id: 'rescan',
   section: 'tools',
@@ -356,9 +509,34 @@ if (!hadLayout && Object.keys(store.doc.kanji).length) {
 }
 renderAll();
 renderLinkModeBar();
-canvas.fit({ animate: false });
+
+// Where the map opens: a deep link wins, then the last position on this device; on a
+// first phone visit, the biggest cluster at a zoom where nodes are easy to tap.
+function savedCamera() {
+  try {
+    const cam = JSON.parse(localStorage.getItem(CAMERA_KEY) || 'null');
+    return cam && [cam.cx, cam.cy, cam.scale].every(Number.isFinite) ? cam : null;
+  } catch (_) {
+    return null;
+  }
+}
+function readableStart() {
+  const biggest = store.graph.clusters()[0];
+  const hub = biggest?.kanji.slice().sort((a, b) => store.graph.children.get(b.id).length - store.graph.children.get(a.id).length)[0];
+  const pos = hub && getPos(store.doc, hub.id);
+  if (pos) canvas.centerOn(pos[0], pos[1] + 120, 0.85, false);
+  else canvas.fit({ animate: false });
+}
+
 if (focusId) {
+  canvas.fit({ animate: false });
   view.search = '';
   view.tagFilter = 'all';
   select(focusId, { center: true });
+} else if (savedCamera()) {
+  canvas.restoreView(savedCamera());
+} else if (isCompact()) {
+  readableStart();
+} else {
+  canvas.fit({ animate: false });
 }
