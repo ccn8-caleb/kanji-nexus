@@ -42,9 +42,10 @@ type Word struct {
 	Color   string   `json:"color,omitempty"`
 }
 
+// Layout positions are [x, y] or [x, y, 1] — the third value marks a pinned node.
 type Layout struct {
-	Kanji map[string][2]float64 `json:"kanji"`
-	Words map[string][2]float64 `json:"words"`
+	Kanji map[string][]float64 `json:"kanji"`
+	Words map[string][]float64 `json:"words"`
 }
 
 type Doc struct {
@@ -60,7 +61,7 @@ const (
 )
 
 func emptyDoc() *Doc {
-	return &Doc{Kanji: map[string]Kanji{}, Words: map[string]Word{}, Links: [][]string{}, Layout: Layout{Kanji: map[string][2]float64{}, Words: map[string][2]float64{}}}
+	return &Doc{Kanji: map[string]Kanji{}, Words: map[string]Word{}, Links: [][]string{}, Layout: Layout{Kanji: map[string][]float64{}, Words: map[string][]float64{}}}
 }
 
 // readDir loads site/data/{kanji,words,links,layout}.json.
@@ -112,10 +113,10 @@ func (d *Doc) fillNil() {
 		d.Links = [][]string{}
 	}
 	if d.Layout.Kanji == nil {
-		d.Layout.Kanji = map[string][2]float64{}
+		d.Layout.Kanji = map[string][]float64{}
 	}
 	if d.Layout.Words == nil {
-		d.Layout.Words = map[string][2]float64{}
+		d.Layout.Words = map[string][]float64{}
 	}
 }
 
@@ -201,11 +202,18 @@ func (d *Doc) linksText(indent int) string {
 	return block("[", "]", lines, indent)
 }
 
-func posText(m map[string][2]float64, indent int) string {
+func posText(m map[string][]float64, indent int) string {
 	var lines []string
 	for _, k := range sortedKeys(m) {
 		p := m[k]
-		lines = append(lines, fmt.Sprintf("%s: [%d,%d]", compact(k), int(math.Round(p[0])), int(math.Round(p[1]))))
+		if len(p) < 2 {
+			continue // malformed; lint reports it
+		}
+		pin := ""
+		if len(p) > 2 && p[2] != 0 {
+			pin = ",1"
+		}
+		lines = append(lines, fmt.Sprintf("%s: [%d,%d%s]", compact(k), int(math.Round(p[0])), int(math.Round(p[1])), pin))
 	}
 	return block("{", "}", lines, indent)
 }

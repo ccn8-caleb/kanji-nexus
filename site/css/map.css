@@ -962,3 +962,29 @@ html, body {
     inset: -10px -6px;
   }
 }
+
+/* Pinned nodes: a small pin badge (automatic layout won't move them) */
+.pin-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+}
+.pin-badge .icon {
+  width: 11px;
+  height: 11px;
+}
+.node-secondary.pinned .pin-badge {
+  top: -8px;
+  right: -4px;
+}

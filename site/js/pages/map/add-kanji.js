@@ -9,7 +9,7 @@ import * as ops from '../../core/ops.js';
 import { t } from '../../core/prefs.js';
 import { openModal, onModalClose } from '../../core/ui.js';
 import { attachKanaInput } from '../../core/kana.js';
-import { findFreePosition, setPos } from './layout.js';
+import { settle, findFreeSpot, setPos } from './layout.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -47,12 +47,18 @@ export function initAddKanji({ store, canvas, select }) {
       els.label.select();
       return;
     }
-    const base = at || canvas.viewportCenter();
+    // Words already containing this kanji attach to it automatically; settle places the
+    // kanji next to them (or at the viewport centre) and makes room. "Add here" pins it.
+    let from;
     store.edit((doc) => {
       ops.addKanji(doc, ch, { on: splitReadings(els.on.value), kun: splitReadings(els.kun.value), notes: els.notes.value.trim() });
-      const pos = findFreePosition(doc, base.x, base.y);
-      setPos(doc, kanjiId(ch), pos.x, pos.y);
+      if (at) {
+        const spot = findFreeSpot(doc, at.x, at.y);
+        setPos(doc, kanjiId(ch), spot.x, spot.y, { pin: true });
+      }
+      from = settle(doc, [kanjiId(ch)], { center: canvas.viewportCenter() });
     });
+    canvas.animateFrom(from);
     added.push(ch);
     renderAdded();
     setStatus(t(`✓「${ch}」を追加しました`, `✓ Added "${ch}"`));

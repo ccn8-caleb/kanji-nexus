@@ -13,7 +13,8 @@ Everything runs client-side from static files. There are no accounts, no server,
 ### Desktop & tablet
 
 * **Header:** search (`/`), one **Add** button for words or kanji (also `N` / `K`), undo/redo, and a **View** menu for display toggles, link mode, fit and auto-arrange. Data, language and theme sit at the right, or under ⋯ on narrower screens.
-* **Context menu:** right-click (or long-press on touch) a node to open, edit, link from it, center it or delete it, or empty space to add a word or kanji right there.
+* **Context menu:** right-click (or long-press on touch) a node to open, edit, link from it, pin/unpin, center it or delete it, or empty space to add a word or kanji right there.
+* **Layout:** new words are placed between their kanji and nearby nodes shift aside to make room. **Tidy up** (View menu) re-lays every cluster organically and packs the clusters together; pinned nodes (anything you've dragged) never move. The engine is [d3-force](https://d3js.org/d3-force) (ISC), bundled as `site/js/vendor/d3-force.js`.
 * **Tablets** (wider than 700px with a touch screen) keep this layout but with touch-sized controls and the read-first inspector.
 
 ### On phones
@@ -120,7 +121,7 @@ The starter sample lives in four files in `site/data/`. Backups and transfer lin
 * **Parent kanji are never stored.** A word attaches to every registered kanji in its spelling, with `々` resolving to the preceding kanji (人々 → 人). Delete a kanji and its words stay; add one and matching words attach to it.
 * **Optional fields** (`meaning`, `notes`, `tags`, `color`) are omitted when empty or default.
 * **Homographs** use a `#` suffix on the key: `"生物#なまもの"` displays as 生物.
-* **Layout is disposable.** Entries missing from `layout.json` are placed automatically next to their kanji. Delete the file's contents (`{"kanji":{},"words":{}}`) and the map auto-arranges itself.
+* **Layout is disposable.** Entries missing from `layout.json` are placed automatically next to their kanji. Delete the file's contents (`{"kanji":{},"words":{}}`) and the map tidies itself. A position with a third value, `[x, y, 1]`, is **pinned**: automatic layout never moves it (dragging a node in the app pins it).
 * Tags: `suru`, `intransitive`, `transitive`, `na-adj`, `i-adj`, `adverb`, `kana`. Link types: `related`, `antonym`, `synonym`, `derivative`, `lookalike`. Both lists are defined in `site/js/core/constants.js`.
 
 ### Maintenance tool (Go)
