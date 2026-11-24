@@ -2,9 +2,17 @@
 <html lang="ja" data-theme="light">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>漢字ネットワーク | Kanji Nexus</title>
   <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="漢字Nexus">
   <script>document.documentElement.dataset.theme = localStorage.getItem('kanji_nexus_theme') === 'dark' ? 'dark' : 'light';</script>
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/map.css">
@@ -46,7 +54,23 @@
     </div>
 
     <div id="nexus-hub-controls"></div>
+
+    <!-- Phones: compact actions (the toolbar above is hidden) -->
+    <div class="mobile-actions">
+      <button type="button" id="m-btn-search" class="icon-btn" aria-label="検索 / Search">🔍</button>
+      <button type="button" id="m-btn-undo" class="icon-btn" aria-label="戻す / Undo" disabled>↩</button>
+      <button type="button" id="m-btn-tools" class="icon-btn" aria-label="表示・ツール / View & tools">⚙︎</button>
+    </div>
   </header>
+
+  <div id="m-search" hidden>
+    <div class="m-search-bar">
+      <input type="search" id="m-search-input" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false"
+        data-placeholder-ja="漢字・熟語・読みで検索" data-placeholder-en="Search kanji, words, readings">
+      <button type="button" id="m-search-close" class="tb-btn" data-ja="閉じる" data-en="Close">閉じる</button>
+    </div>
+    <div id="m-search-results" class="m-search-results"></div>
+  </div>
 
   <div id="tag-filter-bar">
     <div class="filter-pills" id="tag-filter-pills"></div>
@@ -77,8 +101,27 @@
     <button type="button" id="btn-zoom-fit" class="zoom-btn wide" data-ja="全体" data-en="Fit" data-tip-ja="全体を表示" data-tip-en="Fit All Nodes">全体</button>
   </div>
 
+  <div id="fab-wrap">
+    <div id="fab-menu" hidden>
+      <button type="button" class="fab-option" data-fab="word" data-ja="＋ 熟語・語彙" data-en="＋ Word">＋ 熟語・語彙</button>
+      <button type="button" class="fab-option" data-fab="kanji" data-ja="＋ 親漢字" data-en="＋ Kanji">＋ 親漢字</button>
+    </div>
+    <button type="button" id="fab" aria-label="追加 / Add">＋</button>
+  </div>
+
+  <div class="modal-backdrop" id="modal-map-tools">
+    <div class="modal-card">
+      <div class="modal-title">
+        <span data-ja="表示・ツール" data-en="View & tools">表示・ツール</span>
+        <button type="button" class="tb-btn" data-close-modal="modal-map-tools">✕</button>
+      </div>
+      <div class="menu-list" id="map-tools-list"></div>
+    </div>
+  </div>
+
   <aside id="inspector-panel" aria-label="Node Inspector">
     <div class="inspector-header">
+      <span class="sheet-grab" aria-hidden="true"></span>
       <span class="inspector-badge" id="inspector-type-badge"></span>
       <button type="button" id="btn-close-inspector" class="tb-btn small">✕</button>
     </div>
@@ -93,21 +136,21 @@
       </div>
       <div class="field-group">
         <label class="field-label" data-ja="漢字 (1文字)" data-en="Kanji (1 character)">漢字 (1文字)</label>
-        <input type="text" id="new-primary-label" class="field-input" maxlength="4" placeholder="例: 構" data-placeholder-ja="例: 構" data-placeholder-en="e.g. 構">
+        <input type="text" id="new-primary-label" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" maxlength="4" placeholder="例: 構" data-placeholder-ja="例: 構" data-placeholder-en="e.g. 構">
       </div>
       <div class="field-grid-2">
         <div class="field-group">
           <label class="field-label" data-ja="音読み" data-en="Onyomi">音読み</label>
-          <input type="text" id="new-primary-onyomi" class="field-input" placeholder="例: コウ" data-placeholder-ja="例: コウ" data-placeholder-en="e.g. コウ">
+          <input type="text" id="new-primary-onyomi" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="例: コウ" data-placeholder-ja="例: コウ" data-placeholder-en="e.g. コウ">
         </div>
         <div class="field-group">
           <label class="field-label" data-ja="訓読み" data-en="Kunyomi">訓読み</label>
-          <input type="text" id="new-primary-kunyomi" class="field-input" placeholder="例: かま.える" data-placeholder-ja="例: かま.える" data-placeholder-en="e.g. かま.える">
+          <input type="text" id="new-primary-kunyomi" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="例: かま.える" data-placeholder-ja="例: かま.える" data-placeholder-en="e.g. かま.える">
         </div>
       </div>
       <div class="field-group">
         <label class="field-label" data-ja="メモ" data-en="Notes">メモ</label>
-        <input type="text" id="new-primary-notes" class="field-input" placeholder="任意の学習メモ" data-placeholder-ja="任意の学習メモ" data-placeholder-en="Optional study notes">
+        <input type="text" id="new-primary-notes" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="任意の学習メモ" data-placeholder-ja="任意の学習メモ" data-placeholder-en="Optional study notes">
       </div>
       <div class="modal-actions">
         <button type="button" class="tb-btn" data-close-modal="modal-add-primary" data-ja="キャンセル" data-en="Cancel">キャンセル</button>
@@ -124,12 +167,13 @@
       </div>
       <div class="field-group">
         <label class="field-label" data-ja="熟語・単語" data-en="Compound / word">熟語・単語</label>
-        <input type="text" id="new-sec-label" class="field-input" placeholder="例: 構造" data-placeholder-ja="例: 構造" data-placeholder-en="e.g. 構造">
+        <input type="text" id="new-sec-label" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="例: 構造" data-placeholder-ja="例: 構造" data-placeholder-en="e.g. 構造">
         <div id="new-sec-kanji-preview" class="chip-row"></div>
       </div>
       <div class="field-group">
         <label class="field-label" data-ja="読み (ひらがな)" data-en="Reading (hiragana)">読み (ひらがな)</label>
-        <input type="text" id="new-sec-reading" class="field-input" placeholder="例: こうぞう" data-placeholder-ja="例: こうぞう" data-placeholder-en="e.g. こうぞう">
+        <input type="text" id="new-sec-reading" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="例: こうぞう" data-placeholder-ja="例: こうぞう" data-placeholder-en="e.g. こうぞう">
+        <div id="new-sec-reading-hint" class="field-hint" hidden data-ja="✓ 入力時のかなから自動入力（編集できます）" data-en="✓ Filled from what you typed (editable)">✓ 入力時のかなから自動入力（編集できます）</div>
       </div>
       <div class="field-group">
         <label class="field-label" data-ja="品詞・用法タグ" data-en="Grammar & usage tags">品詞・用法タグ</label>
@@ -137,7 +181,7 @@
       </div>
       <div class="field-group">
         <label class="field-label" data-ja="メモ" data-en="Notes">メモ</label>
-        <input type="text" id="new-sec-notes" class="field-input" placeholder="意味・例文・ニュアンス" data-placeholder-ja="意味・例文・ニュアンス" data-placeholder-en="Meaning, example, nuance">
+        <input type="text" id="new-sec-notes" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="意味・例文・ニュアンス" data-placeholder-ja="意味・例文・ニュアンス" data-placeholder-en="Meaning, example, nuance">
       </div>
       <div class="modal-actions">
         <button type="button" class="tb-btn" data-close-modal="modal-add-secondary" data-ja="キャンセル" data-en="Cancel">キャンセル</button>

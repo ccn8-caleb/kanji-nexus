@@ -4,11 +4,12 @@
 import { LINK_TYPES } from '../../core/constants.js';
 import { escapeHtml, fold, joinReadings } from '../../core/util.js';
 import { getPos, setPos } from './layout.js';
+import { isCompact } from '../../core/ui.js';
 
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 2.8;
 
-export function createCanvas({ store, view, onTap, onBackgroundTap }) {
+export function createCanvas({ store, view, onTap, onBackgroundTap, onCameraChange }) {
   const elContainer = document.getElementById('canvas-container');
   const elWorld = document.getElementById('world');
   const elEdgesParent = document.getElementById('edges-primary-layer');
@@ -26,6 +27,7 @@ export function createCanvas({ store, view, onTap, onBackgroundTap }) {
     elWorld.style.transition = animate ? 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
     elWorld.style.transform = `translate(${camera.x}px, ${camera.y}px) scale(${camera.scale})`;
     elZoom.textContent = `${Math.round(camera.scale * 100)}%`;
+    onCameraChange?.(getView());
     // Nudge the browser to re-rasterise text crisply once zooming settles.
     clearTimeout(crispTimer);
     crispTimer = setTimeout(() => {
@@ -54,13 +56,38 @@ export function createCanvas({ store, view, onTap, onBackgroundTap }) {
     apply(true);
   }
 
-  function focusOn(wx, wy, minScale = 0.95) {
+  // Area of the canvas not covered by the inspector (side panel on desktop,
+  // bottom sheet on phones), so focused nodes land where they can be seen.
+  function visibleArea() {
     const r = elContainer.getBoundingClientRect();
-    const inspectorOffset = window.innerWidth > 768 && elInspector.classList.contains('open') ? 160 : 0;
-    camera.scale = Math.max(camera.scale, minScale);
-    camera.x = (r.width - inspectorOffset) / 2 - wx * camera.scale;
-    camera.y = r.height / 2 - wy * camera.scale;
-    apply(true);
+    if (!elInspector.classList.contains('open')) return { width: r.width, height: r.height };
+    if (!isCompact()) return { width: r.width - 320, height: r.height };
+    const sheetVisible = window.innerHeight * (elInspector.classList.contains('full') ? 0.88 : 0.44);
+    const covered = Math.max(0, r.bottom - (window.innerHeight - sheetVisible));
+    return { width: r.width, height: Math.max(80, r.height - covered) };
+  }
+
+  function centerOn(wx, wy, scale = camera.scale, animate = true) {
+    const { width, height } = visibleArea();
+    camera.scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
+    camera.x = width / 2 - wx * camera.scale;
+    camera.y = height / 2 - wy * camera.scale;
+    apply(animate);
+  }
+
+  const focusOn = (wx, wy, minScale = 0.95) => centerOn(wx, wy, Math.max(camera.scale, minScale));
+
+  // Camera as "world point at the viewport centre + scale" survives screen-size changes.
+  function getView() {
+    const r = elContainer.getBoundingClientRect();
+    return { cx: Math.round((r.width / 2 - camera.x) / camera.scale), cy: Math.round((r.height / 2 - camera.y) / camera.scale), scale: Number(camera.scale.toFixed(3)) };
+  }
+  function restoreView({ cx, cy, scale }) {
+    const r = elContainer.getBoundingClientRect();
+    camera.scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
+    camera.x = r.width / 2 - cx * camera.scale;
+    camera.y = r.height / 2 - cy * camera.scale;
+    apply(false);
   }
 
   function fit({ animate = true } = {}) {
@@ -309,5 +336,5 @@ export function createCanvas({ store, view, onTap, onBackgroundTap }) {
     { passive: false }
   );
 
-  return { render, fit, focusOn, zoomBy, resetZoom, viewportCenter };
+  return { render, fit, focusOn, centerOn, zoomBy, resetZoom, viewportCenter, getView, restoreView };
 }

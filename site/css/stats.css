@@ -1,7 +1,8 @@
 /* Stats page. */
 body {
   min-height: 100vh;
-  padding-top: var(--header-h);
+  padding-top: var(--header-total);
+  padding-bottom: var(--tabbar-h);
 }
 
 /* ================= LAYOUT CONTAINER ================= */

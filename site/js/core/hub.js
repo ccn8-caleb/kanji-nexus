@@ -10,6 +10,7 @@
 import { store } from './store.js';
 import { t, tr, isEn, setLang, getLang, toggleTheme, onPrefsChange, applyStaticText } from './prefs.js';
 import { toast, openModal, closeModal, initTooltips } from './ui.js';
+import { registerServiceWorker, installAvailable, promptInstall, onInstallAvailable } from './pwa.js';
 import plugins from '../sync/index.js';
 
 export const APPS = [
@@ -51,6 +52,64 @@ function renderNav() {
     return `<a class="hub-pill${active ? ' active' : ''}" href="${app.file}" ${active ? 'aria-current="page"' : ''}
       data-tip-ja="${app.tipJa}" data-tip-en="${app.tipEn}"><span aria-hidden="true">${app.icon}</span><span>${tr(app)}</span></a>`;
   }).join('')}</nav>`;
+  renderTabbar();
+}
+
+// Phones: navigation lives in a bottom tab bar; Data / language / theme in the ⋯ sheet.
+function renderTabbar() {
+  let bar = document.getElementById('hub-tabbar');
+  if (!bar) {
+    bar = document.createElement('nav');
+    bar.id = 'hub-tabbar';
+    bar.className = 'hub-tabbar';
+    bar.setAttribute('aria-label', 'Kanji Nexus');
+    document.body.appendChild(bar);
+    bar.addEventListener('click', (e) => e.target.closest('#hub-tab-more') && openMoreSheet());
+  }
+  bar.innerHTML =
+    APPS.map((app) => {
+      const active = app.id === currentApp;
+      return `<a class="hub-tab${active ? ' active' : ''}" href="${app.file}" ${active ? 'aria-current="page"' : ''}>
+        <span class="hub-tab-icon" aria-hidden="true">${app.icon}</span><span class="hub-tab-label">${tr(app)}</span></a>`;
+    }).join('') +
+    `<button type="button" class="hub-tab" id="hub-tab-more" aria-label="${t('その他', 'More')}">
+       <span class="hub-tab-icon" aria-hidden="true">⋯</span><span class="hub-tab-label">${t('その他', 'More')}</span></button>`;
+  renderBadge();
+}
+
+function openMoreSheet() {
+  let el = document.getElementById('hub-more-sheet');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'modal-backdrop';
+    el.id = 'hub-more-sheet';
+    document.body.appendChild(el);
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-more]');
+      if (!b) return;
+      const what = b.dataset.more;
+      if (what === 'data') {
+        closeModal('hub-more-sheet');
+        openDataPanel();
+      } else if (what === 'theme') toggleTheme();
+      else if (what === 'ja' || what === 'en') setLang(what);
+      else if (what === 'install') promptInstall().then(() => closeModal('hub-more-sheet'));
+      if (what !== 'data' && what !== 'install') openMoreSheet(); // re-render state
+    });
+  }
+  el.innerHTML = `
+    <div class="modal-card">
+      <div class="modal-title"><span>${t('その他', 'More')}</span><button type="button" class="tb-btn" data-close-modal="hub-more-sheet">✕</button></div>
+      <div class="menu-list">
+        <button type="button" class="menu-row" data-more="data"><span>💾 ${t('データ・同期・バックアップ', 'Data, sync & backup')}</span>${syncStatus?.badge ? `<span class="sync-badge ${syncStatus.tone || ''}">${syncStatus.badge}</span>` : ''}</button>
+        <div class="menu-row static"><span>🌐 ${t('表示言語', 'Language')}</span>
+          <div class="lang-switch"><button type="button" data-more="ja" class="${getLang() === 'ja' ? 'active' : ''}">日本語</button><button type="button" data-more="en" class="${getLang() === 'en' ? 'active' : ''}">EN</button></div>
+        </div>
+        <button type="button" class="menu-row" data-more="theme"><span>🌓 ${t('ライト/ダーク切替', 'Light / dark theme')}</span></button>
+        ${installAvailable() ? `<button type="button" class="menu-row" data-more="install"><span>📲 ${t('ホーム画面に追加', 'Install app')}</span></button>` : ''}
+      </div>
+    </div>`;
+  openModal('hub-more-sheet');
 }
 
 function renderControls() {
@@ -98,15 +157,16 @@ export function setSyncStatus(status) {
 }
 
 function renderBadge() {
-  const btn = document.getElementById('hub-btn-data');
-  if (!btn) return;
-  btn.querySelector('.sync-badge')?.remove();
-  if (!syncStatus?.badge) return;
-  const badge = document.createElement('span');
-  badge.className = `sync-badge ${syncStatus.tone || ''}`;
-  badge.textContent = syncStatus.badge;
-  badge.title = syncStatus.detail || '';
-  btn.appendChild(badge);
+  for (const btn of [document.getElementById('hub-btn-data'), document.getElementById('hub-tab-more')]) {
+    if (!btn) continue;
+    btn.querySelector('.sync-badge')?.remove();
+    if (!syncStatus?.badge) continue;
+    const badge = document.createElement('span');
+    badge.className = `sync-badge ${syncStatus.tone || ''}`;
+    badge.textContent = syncStatus.badge;
+    badge.title = syncStatus.detail || '';
+    btn.appendChild(badge);
+  }
 }
 
 export function refreshDataPanel() {
@@ -256,7 +316,9 @@ export async function initPage(appId) {
   };
   render();
   onPrefsChange((what) => what === 'lang' && render());
+  onInstallAvailable(() => document.getElementById('hub-more-sheet')?.classList.contains('open') && openMoreSheet());
   initTooltips();
+  registerServiceWorker();
 
   const source = await store.load();
   if (source === 'legacy') toast(t('以前のデータを新しい形式に移行しました', 'Migrated your data to the new format'));

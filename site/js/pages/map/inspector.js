@@ -6,24 +6,49 @@ import { kanjiId, wordId } from '../../core/graph.js';
 import { remapSrs } from '../../core/srs.js';
 import * as ops from '../../core/ops.js';
 import { t, tr } from '../../core/prefs.js';
-import { toast, bindImeField } from '../../core/ui.js';
+import { toast, bindImeField, bindSwipe, isCompact } from '../../core/ui.js';
 import { findFreePosition, wordAnchor, setPos } from './layout.js';
 
 const elPanel = document.getElementById('inspector-panel');
 const elBody = document.getElementById('inspector-body');
 const elBadge = document.getElementById('inspector-type-badge');
 
-// ctx: { store, view, select(id, { center }), canvas }
+// Phones: the sheet has a "peek" state (read-first summary) and a "full" state
+// (editing). Swipe the header up/down, or use Edit / Done, to switch.
+//   view.inspectorMode: 'summary' | 'edit'   (reset to summary on each new selection)
+//   view.sheetFull:     boolean
+export function initInspectorGestures(ctx) {
+  const header = elPanel.querySelector('.inspector-header');
+  bindSwipe(header, {
+    onUp: () => {
+      if (!isCompact()) return;
+      ctx.view.sheetFull = true;
+      renderInspector(ctx);
+    },
+    onDown: () => {
+      if (!isCompact()) return;
+      if (ctx.view.sheetFull || ctx.view.inspectorMode === 'edit') {
+        ctx.view.sheetFull = false;
+        ctx.view.inspectorMode = 'summary';
+        renderInspector(ctx);
+      } else ctx.select(null);
+    },
+  });
+}
+
+// ctx: { store, view, select(id, { center }), canvas, startLink(wordId) }
 export function renderInspector(ctx) {
   const { store, view } = ctx;
   const graph = store.graph;
   const node = graph.node(view.selectedId);
   if (!node) {
     view.selectedId = null;
-    elPanel.classList.remove('open');
+    elPanel.classList.remove('open', 'full');
     return;
   }
+  const summary = isCompact() && view.inspectorMode !== 'edit';
   elPanel.classList.add('open');
+  elPanel.classList.toggle('full', isCompact() && (view.sheetFull || !summary));
   const isKanji = node.kind === 'kanji';
   elBadge.textContent = isKanji ? t('親漢字ノード', 'Primary Kanji') : t('熟語・語彙ノード', 'Compound / Vocab');
 
@@ -59,8 +84,18 @@ export function renderInspector(ctx) {
       </div>`,
   };
 
+  if (summary) return renderSummary(ctx, node, common);
+
   if (isKanji) renderKanji(ctx, node, common);
   else renderWord(ctx, node, common);
+  if (isCompact()) {
+    elBody.insertAdjacentHTML('afterbegin', `<button type="button" class="tb-btn" data-insp="done">✓ ${t('編集を終える', 'Done editing')}</button>`);
+    elBody.querySelector('[data-insp="done"]').addEventListener('click', () => {
+      view.inspectorMode = 'summary';
+      view.sheetFull = false;
+      renderInspector(ctx);
+    });
+  }
 
   // ---- shared bindings ----
   const setColor = (color) =>
@@ -83,11 +118,67 @@ export function renderInspector(ctx) {
     delInit.hidden = false;
     delGroup.hidden = true;
   });
-  elBody.querySelector('#btn-delete-node-confirm').addEventListener('click', () => {
-    view.selectedId = null;
-    store.edit((doc) => (isKanji ? ops.deleteKanji(doc, node.key) : ops.deleteWord(doc, node.key)));
-    toast(t('ノードを削除しました（Ctrl+Zで元に戻せます）', 'Node deleted (Ctrl+Z to undo)'));
+  elBody.querySelector('#btn-delete-node-confirm').addEventListener('click', () => deleteNode(ctx, node));
+}
+
+function deleteNode(ctx, node) {
+  ctx.view.selectedId = null;
+  ctx.store.edit((doc) => (node.kind === 'kanji' ? ops.deleteKanji(doc, node.key) : ops.deleteWord(doc, node.key)));
+  toast(t(`「${node.label}」を削除しました`, `Deleted "${node.label}"`), {
+    action: { label: t('元に戻す', 'Undo'), run: () => ctx.store.undo() },
   });
+}
+
+// Read-first view for phones: no inputs, so a stray tap never opens the keyboard.
+function renderSummary(ctx, node, common) {
+  const { store, view } = ctx;
+  const graph = store.graph;
+  const isKanji = node.kind === 'kanji';
+  const chip = (id, label, extra = '') => `<button type="button" class="kanji-chip" data-jump-node="${escapeHtml(id)}" ${extra}>${escapeHtml(label)}</button>`;
+  const section = (title, body) => (body ? `<div class="field-group"><label class="field-label">${title}</label><div class="chip-row">${body}</div></div>` : '');
+
+  let reading;
+  let related = '';
+  if (isKanji) {
+    reading = [joinReadings(node.on), joinReadings(node.kun)].filter(Boolean).join(' ／ ') || t('読み未登録', 'No reading saved');
+    const kids = graph.children.get(node.id);
+    related = section(t(`関連する熟語 (${kids.length})`, `Compounds (${kids.length})`), kids.map((wid) => chip(wid, graph.words.get(wid).label)).join(''));
+  } else {
+    reading = node.reading || t('読み未登録', 'No reading saved');
+    const tags = node.tags.map((id) => `<span class="tag-toggle active">${tr(GRAMMAR_TAGS.find((g) => g.id === id))}</span>`).join('');
+    related =
+      section(t('品詞・用法', 'Grammar & usage'), tags) +
+      section(t('構成親漢字', 'Kanji'), graph.parents.get(node.id).map((pid) => chip(pid, graph.kanji.get(pid).label)).join('')) +
+      section(
+        t('関連語', 'Related words'),
+        graph.linksOf
+          .get(node.id)
+          .map(({ id, type }) => chip(id, `${LINK_TYPES[type].short}·${graph.words.get(id).label}`, `style="border-color:${LINK_TYPES[type].color}"`))
+          .join('')
+      );
+  }
+
+  elBody.innerHTML = `
+    <div class="summary-hero">
+      <span class="summary-label">${escapeHtml(node.label)}</span>
+      <span class="summary-reading">${escapeHtml(reading)}</span>
+    </div>
+    <div class="summary-actions">
+      <button type="button" class="tb-btn primary" data-insp="edit">✏️ ${t('編集', 'Edit')}</button>
+      ${isKanji ? '' : `<button type="button" class="tb-btn" data-insp="link">🔗 ${t('リンク', 'Link')}</button>`}
+      <button type="button" class="tb-btn danger" data-insp="delete" aria-label="${t('削除', 'Delete')}">🗑</button>
+    </div>
+    ${node.notes ? `<div class="summary-notes">${escapeHtml(node.notes)}</div>` : ''}
+    ${related}
+    ${common.dict}`;
+
+  elBody.querySelectorAll('[data-jump-node]').forEach((b) => b.addEventListener('click', () => ctx.select(b.dataset.jumpNode, { center: true })));
+  elBody.querySelector('[data-insp="edit"]').addEventListener('click', () => {
+    view.inspectorMode = 'edit';
+    renderInspector(ctx);
+  });
+  elBody.querySelector('[data-insp="link"]')?.addEventListener('click', () => ctx.startLink(node.id));
+  elBody.querySelector('[data-insp="delete"]').addEventListener('click', () => deleteNode(ctx, node));
 }
 
 // Text fields edit in place without re-rendering the panel (reason 'field'), with one

@@ -10,6 +10,25 @@ Everything runs client-side from static files. There are no accounts, no server,
 | **Stats & Index** (`stats.html`) | Top kanji hubs, tag and link breakdowns, and a searchable gojūon (あ〜わ) and cluster index. Any entry jumps to the map. |
 | **SRS Drill** (`drill.html`) | SM-2 flashcards, Kanji → Reading or Reading → Kanji (homophones are masked as `〇〇`), with tag filters and map context. |
 
+### On phones
+
+* **Navigation:** a bottom tab bar (Map / Stats / Drill / ⋯). The ⋯ sheet holds Data & sync, language, theme, and **Install app** when the browser offers it.
+* **Map:**
+  * opens where you left off; on a first visit it opens on the biggest cluster at a zoom where nodes are easy to tap
+  * 🔍 opens search with a tappable results list
+  * ⚙︎ holds the view toggles, link mode, auto-arrange and redo
+  * ＋ adds a word or a kanji
+* **Inspector:** tapping a node opens a bottom sheet with a read-first summary, and the map re-centers the node above it. **Edit** (or swiping up) opens the full form; swiping down goes back or closes. Deleting shows an **Undo** snackbar.
+* **Adding words:** the form is a bottom sheet that stays above the keyboard, and the keyboard's Next/Done keys move through the fields. The **reading fills itself in** from the kana you typed before converting (こうぞう → 構造 gives こうぞう). This is best effort: it stops as soon as you edit the word by hand, and you can always change it.
+* **Drill:** the card fills the screen, rating buttons stay fixed above the tab bar, and filters fold into one line.
+
+### Install & offline
+
+Kanji Nexus is an installable web app (`site/manifest.webmanifest`).
+* **Install:** Android and desktop Chrome/Edge offer it from ⋯ → **Install app**. On iOS, use Share → **Add to Home Screen**.
+* **Offline:** the service worker (`site/sw.js`) is network-first. Online you always get the latest deploy; offline, every page keeps working. The deploy workflow stamps the worker with the commit hash and the full file list, so one visit caches the whole app and old caches are cleared on update.
+* **Sync after offline:** Google Drive sync resumes when you're back online.
+
 ---
 
 ## Running it
@@ -113,7 +132,9 @@ site/
     store.js       owns the doc: load, undo/redo, persist, import/reset/wipe, cross-tab sync
     srs.js         SM-2 scheduling and progress storage
     prefs.js       language + theme (shared across pages and tabs)
-    ui.js          toast, modals, bilingual tooltips, IME-safe inputs
+    ui.js          toast/snackbar, modals & bottom sheets, phone breakpoint, keyboard offset, tooltips
+    ime.js         reading capture from IME composition, Enter-to-next-field
+    pwa.js         service-worker registration, install prompt
     hub.js         page shell: nav, header controls, Data panel, deep links
   js/pages/        stats.js, drill.js, map/{main,canvas,inspector,layout}.js
   js/sync/         transfer/sync plugins (see below); config.js holds the Google client ID
@@ -143,6 +164,7 @@ Plugins live in `js/sync/` and are listed in `js/sync/index.js`. A plugin export
 | `kanji_nexus_srs_v1` | drill progress by node ID |
 | `kanji_nexus_lang` / `kanji_nexus_theme` | interface preferences |
 | `kanji_nexus_map_view` | map toggles (reveal all, readings, auto-link, auto-create) |
+| `kanji_nexus_map_camera` | last map position and zoom on this device |
 | `kanji_nexus_gdrive` | Drive sync state (enabled, file id, last synced version and content hash) |
 | `kanji_nexus_gdrive_token` | current Google access token (expires in about an hour) |
 | `kanji_nexus_data_v1` | previous-version data; read once for migration and never written |
