@@ -64,6 +64,7 @@ function renderControls() {
     </div>
     <button type="button" class="tb-btn" id="hub-btn-theme" data-tip-ja="ライト/ダークテーマ切替" data-tip-en="Toggle Light / Dark Theme">🌓</button>`;
   slot.querySelector('#hub-btn-data').addEventListener('click', openDataPanel);
+  renderBadge();
   slot.querySelector('#hub-btn-theme').addEventListener('click', toggleTheme);
   slot.querySelectorAll('[data-set-lang]').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.setLang)));
 }
@@ -71,13 +72,55 @@ function renderControls() {
 // ---------------------------------------------------------------------------
 // Data panel
 // ---------------------------------------------------------------------------
-// Pages and plugins contribute buttons: { id, section: 'transfer' | 'tools', ja, en, run(ctx) }
+// Pages and plugins contribute buttons:
+//   { id, section: 'sync' | 'transfer' | 'tools', ja, en, run(ctx),
+//     label?(): string,     // dynamic text instead of ja/en
+//     hidden?(): boolean,   // e.g. "Disconnect" only while connected
+//     primary?(): boolean }
 const dataActions = [];
 export function registerDataAction(action) {
   dataActions.push(action);
 }
 
-const pluginCtx = { store, toast, t, closePanel: () => closeModal('hub-data-panel') };
+const SECTIONS = [
+  { id: 'sync', ja: 'クラウド同期', en: 'Cloud sync' },
+  { id: 'transfer', ja: '端末間の転送', en: 'Move to another device' },
+  { id: 'tools', ja: 'メンテナンス', en: 'Maintenance' },
+];
+
+// Sync status shown on the Data button (badge) and in the panel (detail).
+// tone: 'ok' | 'busy' | 'warn' | 'error'
+let syncStatus = null;
+export function setSyncStatus(status) {
+  syncStatus = status;
+  renderBadge();
+  refreshDataPanel();
+}
+
+function renderBadge() {
+  const btn = document.getElementById('hub-btn-data');
+  if (!btn) return;
+  btn.querySelector('.sync-badge')?.remove();
+  if (!syncStatus?.badge) return;
+  const badge = document.createElement('span');
+  badge.className = `sync-badge ${syncStatus.tone || ''}`;
+  badge.textContent = syncStatus.badge;
+  badge.title = syncStatus.detail || '';
+  btn.appendChild(badge);
+}
+
+export function refreshDataPanel() {
+  if (document.getElementById('hub-data-panel')?.classList.contains('open')) openDataPanel();
+}
+
+const pluginCtx = {
+  store,
+  toast,
+  t,
+  closePanel: () => closeModal('hub-data-panel'),
+  refreshPanel: refreshDataPanel,
+  setSyncStatus,
+};
 
 function downloadBackup() {
   const blob = new Blob([store.exportText()], { type: 'application/json' });
@@ -109,11 +152,21 @@ function buildDataPanel() {
   return el;
 }
 
-function actionButtons(section) {
-  return dataActions
-    .filter((a) => a.section === section)
-    .map((a) => `<button type="button" class="tb-btn" data-hub-action="${a.id}">${tr(a)}</button>`)
+const visibleActions = (section) => dataActions.filter((a) => a.section === section && !a.hidden?.());
+
+function sectionHtml(section) {
+  const actions = visibleActions(section.id);
+  if (!actions.length) return '';
+  const detail = section.id === 'sync' && syncStatus?.detail ? `<p class="panel-note sync-detail ${syncStatus.tone || ''}">${syncStatus.detail}</p>` : '';
+  const buttons = actions
+    .map((a) => `<button type="button" class="tb-btn${a.primary?.() ? ' primary' : ''}" data-hub-action="${a.id}">${a.label ? a.label() : tr(a)}</button>`)
     .join('');
+  return `
+      <div class="field-group">
+        <label class="field-label">${tr(section)}</label>
+        ${detail}
+        <div class="chip-row">${buttons}</div>
+      </div>`;
 }
 
 export function openDataPanel() {
@@ -126,8 +179,8 @@ export function openDataPanel() {
         <button type="button" class="tb-btn" data-close-modal="hub-data-panel">✕</button>
       </div>
       <p class="panel-note">${t(
-        `データはこのブラウザに保存されています（漢字 ${g.kanji.size}・語彙 ${g.words.size}）。他の端末へ移すには転送リンクかバックアップファイルを使ってください。`,
-        `Your data lives in this browser (${g.kanji.size} kanji · ${g.words.size} words). Use a transfer link or a backup file to move it to another device.`
+        `データはこのブラウザに保存されています（漢字 ${g.kanji.size}・語彙 ${g.words.size}）。他の端末へ移すにはクラウド同期・転送リンク・バックアップファイルを使ってください。`,
+        `Your data lives in this browser (${g.kanji.size} kanji · ${g.words.size} words). Use cloud sync, a transfer link, or a backup file to move it to another device.`
       )}</p>
 
       <div class="field-group">
@@ -138,17 +191,7 @@ export function openDataPanel() {
         </div>
       </div>
 
-      ${dataActions.some((a) => a.section === 'transfer') ? `
-      <div class="field-group">
-        <label class="field-label">${t('端末間の転送', 'Move to another device')}</label>
-        <div class="chip-row">${actionButtons('transfer')}</div>
-      </div>` : ''}
-
-      ${dataActions.some((a) => a.section === 'tools') ? `
-      <div class="field-group">
-        <label class="field-label">${t('メンテナンス', 'Maintenance')}</label>
-        <div class="chip-row">${actionButtons('tools')}</div>
-      </div>` : ''}
+      ${SECTIONS.map(sectionHtml).join('')}
 
       <div class="field-group">
         <label class="field-label">${t('サンプル・初期化', 'Sample & reset')}</label>
@@ -196,6 +239,7 @@ export function openDataPanel() {
   el.querySelectorAll('[data-hub-action]').forEach((btn) => {
     const action = dataActions.find((a) => a.id === btn.dataset.hubAction);
     btn.addEventListener('click', () => action.run(pluginCtx));
+    // Note: plugin run() may be async; errors are the plugin's to report.
   });
   openModal('hub-data-panel');
 }

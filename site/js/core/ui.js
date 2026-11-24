@@ -42,6 +42,43 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ---------------------------------------------------------------------------
+// choose(): modal with several buttons; resolves to the chosen option's id,
+// or null if dismissed (✕, backdrop, Escape).
+//   await choose({ title, message, options: [{ id, label, tone?: 'primary'|'danger' }] })
+// ---------------------------------------------------------------------------
+export function choose({ title, message, options }) {
+  return new Promise((resolve) => {
+    const el = document.createElement('div');
+    el.className = 'modal-backdrop open choose-dialog';
+    el.innerHTML = `
+      <div class="modal-card">
+        <div class="modal-title"><span></span><button type="button" class="tb-btn" data-choice="">✕</button></div>
+        <p class="panel-note choose-message"></p>
+        <div class="modal-actions">${options
+          .map((o) => `<button type="button" class="tb-btn ${o.tone === 'danger' ? 'danger' : o.tone === 'primary' ? 'primary' : ''}" data-choice="${o.id}"></button>`)
+          .join('')}</div>
+      </div>`;
+    el.querySelector('.modal-title span').textContent = title;
+    el.querySelector('.choose-message').textContent = message;
+    options.forEach((o, i) => (el.querySelectorAll('.modal-actions [data-choice]')[i].textContent = o.label));
+    document.body.appendChild(el);
+
+    const finish = (value) => {
+      observer.disconnect();
+      el.remove();
+      resolve(value || null);
+    };
+    el.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-choice]');
+      if (btn) finish(btn.dataset.choice);
+    });
+    // Backdrop click / Escape remove the "open" class (handlers above): treat as dismiss.
+    const observer = new MutationObserver(() => !el.classList.contains('open') && finish(null));
+    observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+  });
+}
+
+// ---------------------------------------------------------------------------
 // IME-safe input binding: fires onChange(value, committed) only outside composition.
 // onStart fires once per focus session before the first change (use for undo checkpoints).
 // ---------------------------------------------------------------------------

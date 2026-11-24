@@ -417,3 +417,23 @@ details[open] > summary.field-label::before {
   opacity: 1;
   transform: translateY(0);
 }
+
+/* ================= SYNC STATUS ================= */
+.sync-badge {
+  margin-left: 4px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+}
+.sync-badge.ok { background: rgba(16, 185, 129, 0.15); color: var(--accent-secondary); }
+.sync-badge.busy { background: rgba(37, 99, 235, 0.12); color: var(--accent-primary); }
+.sync-badge.warn { background: rgba(245, 158, 11, 0.18); color: #b45309; }
+.sync-badge.error { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+[data-theme="dark"] .sync-badge.warn { color: var(--accent-amber); }
+.sync-detail.warn { color: #b45309; }
+.sync-detail.error { color: var(--danger); }
+.choose-message { white-space: pre-line; }

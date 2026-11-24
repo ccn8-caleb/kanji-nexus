@@ -32,12 +32,30 @@ The `master` branch deploys `site/` to GitHub Pages (`.github/workflows/static.y
 * **Editing:** every change is saved to `localStorage` in that browser right away. Undo/redo covers adding, deleting, renaming, linking, dragging, wiping, and resetting.
 * **The 💾 Data button** is in every page header:
   * **Download / load `.json`:** backup files. Old exports in the `primaryNodes` format are migrated automatically.
+  * **Sync with Google Drive** (when configured, see below): keeps your data in a hidden app folder in your own Google Drive and syncs automatically between devices.
   * **Transfer link:** your whole dataset is gzipped into a URL `#fragment`. Open the link on another device to import it. The fragment is never sent to any server.
   * **Share file:** sends a backup to the phone's share sheet (AirDrop, Files, Drive, …) where the browser supports it.
   * **Reset to sample** or **Erase all & start empty**. Both can be undone in the current tab.
   * **Edit raw JSON** directly.
 
 Browsers that still have data from the previous version (`kanji_nexus_data_v1`) are migrated on first load. SRS progress is carried over to the new node IDs, and the old key is left in place as a backup.
+
+### Google Drive sync
+
+* **Connecting:** one click, then Google's sign-in popup (consent the first time only). The data goes into Drive's hidden *app data* folder. It is invisible in the Drive UI, other apps can't read it, and the app can't see any of your other files (scope `drive.appdata`).
+* **While connected:** edits sync a few seconds after you make them, and changes from other devices are picked up when you come back to the tab.
+* **Sign-in expiry:** Google sign-ins expire after about an hour and can't renew without a click. The 💾 button then shows **☁!** and **Sync now** signs in again.
+* **Conflicts are decided by content.** If only one side changed, it wins automatically. If both changed, or a new device's data differs from Drive's, you choose which copy to keep. Taking Drive's copy can be undone with Ctrl+Z on the map.
+* **Drill progress is not synced yet;** only the vocabulary is.
+
+**One-time setup (site owner).** Google Drive sync stays hidden until a client ID is configured.
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create a project and enable the **Google Drive API**.
+2. Configure the OAuth consent screen: set the app name and support email, add the scope `https://www.googleapis.com/auth/drive.appdata`, and publish the app. While it is in *Testing*, only listed test users can sign in. `drive.appdata` is a non-sensitive scope, so only Google's basic app verification applies.
+3. Create an **OAuth client ID** of type *Web application*. Under **Authorized JavaScript origins**, list every origin you serve from, e.g. `https://kanjinexus.concatn8.com` and `http://localhost:8000`.
+4. Put the client ID in `site/js/sync/config.js` and deploy. Client IDs are public by design.
+
+Google sign-in only works on HTTPS (or `localhost`). On a plain-`http://` page the panel offers to reopen the site over HTTPS, and you should enable **Enforce HTTPS** in the repo's Pages settings.
 
 ---
 
@@ -98,7 +116,7 @@ site/
     ui.js          toast, modals, bilingual tooltips, IME-safe inputs
     hub.js         page shell: nav, header controls, Data panel, deep links
   js/pages/        stats.js, drill.js, map/{main,canvas,inspector,layout}.js
-  js/sync/         transfer/sync plugins (see below)
+  js/sync/         transfer/sync plugins (see below); config.js holds the Google client ID
 tools/kanjinexus/  Go CLI for site/data
 ```
 
@@ -125,4 +143,6 @@ Plugins live in `js/sync/` and are listed in `js/sync/index.js`. A plugin export
 | `kanji_nexus_srs_v1` | drill progress by node ID |
 | `kanji_nexus_lang` / `kanji_nexus_theme` | interface preferences |
 | `kanji_nexus_map_view` | map toggles (reveal all, readings, auto-link, auto-create) |
+| `kanji_nexus_gdrive` | Drive sync state (enabled, file id, last synced version and content hash) |
+| `kanji_nexus_gdrive_token` | current Google access token (expires in about an hour) |
 | `kanji_nexus_data_v1` | previous-version data; read once for migration and never written |
