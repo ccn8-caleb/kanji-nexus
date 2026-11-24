@@ -1,14 +1,14 @@
 # Simple workflow for deploying static content to GitHub Pages
 name: Deploy static content to Pages
 
-# Branches: feature branches → develop (checked, not deployed) → master (deployed).
+# Branches: feature branches → development (checked, not deployed) → master (deployed).
 on:
   push:
-    branches: ["master", "develop"]
+    branches: ["master", "development"]
 
   # Pull requests into either branch run the checks only
   pull_request:
-    branches: ["master", "develop"]
+    branches: ["master", "development"]
 
   # Manual runs (Actions tab); they only deploy when run on master
   workflow_dispatch:
@@ -44,7 +44,7 @@ jobs:
   # Package site/ as the Pages artifact
   build:
     needs: lint
-    # Only master is ever built and deployed; develop and PRs stop after lint.
+    # Only master is ever built and deployed; development and PRs stop after lint.
     if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
