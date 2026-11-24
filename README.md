@@ -140,6 +140,8 @@ To update the starter sample from the app: edit it in the browser, then **💾 D
 
 ## Versions & deploys
 
+* **Branches:** work happens on feature branches merged into **`develop`**, which collects the next release. Pushes and PRs to `develop` run the checks (lint, formatting, changelog entry) but never deploy. A release is a PR (or fast-forward) from `develop` into **`master`**; every push to `master` builds and deploys to GitHub Pages.
+
 * **App version:** semver, in `site/js/core/version.js`. To release, bump `APP_VERSION` and add a `## [x.y.z]` entry to [CHANGELOG.md](CHANGELOG.md). CI refuses to deploy a version that has no changelog entry.
 * **Build id:** at deploy, `tools/stamp-deploy.sh` stamps the commit hash and date. The app shows both at the bottom of the 💾 Data panel and the ⋯ sheet (e.g. `v0.5.0 · build e9a6960 · 2026-11-24`). The first time a device opens a new version, it shows an "Updated to vX.Y.Z" notice linking to the changelog.
 * **What's live:** `curl -s https://kanjinexus.concatn8.com/ | grep app-version` prints e.g. `0.5.0+e9a6960c1b2d`. In the browser console, `KANJI_NEXUS_VERSION` shows the same.
