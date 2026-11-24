@@ -55,7 +55,8 @@ for f in *.html; do
 done
 
 # --- 3. Service worker -------------------------------------------------------------
-files=$(find . -type f ! -name sw.js ! -name CNAME | sed 's#^\./##' | sort |
+# dict/ (thousands of dictionary shards) is cached on demand, not precached.
+files=$(find . -type f ! -name sw.js ! -name CNAME ! -path './dict/*' | sed 's#^\./##' | sort |
   jq -R --arg v "$v" 'if test("\\.(js|css|webmanifest)$") then . + "?v=" + $v else . end' | jq -sc .)
 sed -i \
   -e "s#^const VERSION = 'dev';#const VERSION = '${v}';#" \

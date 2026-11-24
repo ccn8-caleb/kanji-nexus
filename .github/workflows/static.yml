@@ -57,6 +57,21 @@ jobs:
         uses: actions/checkout@v7
       - name: Setup Pages
         uses: actions/configure-pages@v6
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+      # Dictionary: latest JMdict (English) from jmdict-simplified, split into
+      # one small file per first character under site/dict/.
+      - name: Build dictionary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/jmdict"
+          gh release download --repo scriptin/jmdict-simplified --pattern 'jmdict-eng-[0-9]*.json.tgz' --dir "$RUNNER_TEMP/jmdict"
+          tar -xzf "$RUNNER_TEMP"/jmdict/*.tgz -C "$RUNNER_TEMP/jmdict"
+          go run ./tools/kanjinexus dict build "$RUNNER_TEMP"/jmdict/jmdict-eng-*.json site/dict
       # Versioned asset URLs (so Cloudflare/browsers never mix two deploys) and the
       # service worker's version + offline precache list. See tools/stamp-deploy.sh.
       - name: Stamp deploy

@@ -4,6 +4,8 @@
 //	kanjinexus fmt    [-check] [dir]   rewrite files in canonical form
 //	kanjinexus prune  [dir]            drop dangling links and stale layout entries
 //	kanjinexus import <backup.json> [dir]   split an app backup into data files
+//	kanjinexus dict build <jmdict.json> <out>  dictionary shards for the app (CI)
+//	kanjinexus dict fill  <jmdict.json> [dir]  fill missing word meanings in data
 //
 // dir defaults to site/data (relative to the repo root).
 package main
@@ -21,7 +23,9 @@ func usage() {
   kanjinexus lint   [dir]
   kanjinexus fmt    [-check] [dir]
   kanjinexus prune  [dir]
-  kanjinexus import <backup.json> [dir]`)
+  kanjinexus import <backup.json> [dir]
+  kanjinexus dict build <jmdict-eng.json> <out-dir>
+  kanjinexus dict fill  <jmdict-eng.json> [dir]`)
 	os.Exit(2)
 }
 
@@ -130,6 +134,26 @@ func main() {
 			die(err)
 		}
 		fmt.Printf("imported %d kanji · %d words · %d links (%d files changed)\n", len(d.Kanji), len(d.Words), len(d.Links), len(changed))
+
+	case "dict":
+		if len(args) < 2 {
+			usage()
+		}
+		var err error
+		switch args[0] {
+		case "build":
+			if len(args) < 3 {
+				usage()
+			}
+			err = dictBuild(args[1], args[2])
+		case "fill":
+			err = dictFill(args[1], dirArg(args, 2))
+		default:
+			usage()
+		}
+		if err != nil {
+			die(err)
+		}
 
 	default:
 		usage()

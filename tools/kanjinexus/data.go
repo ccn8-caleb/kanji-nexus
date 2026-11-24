@@ -36,6 +36,7 @@ type Kanji struct {
 
 type Word struct {
 	Reading string   `json:"reading"`
+	Meaning string   `json:"meaning,omitempty"`
 	Tags    []string `json:"tags,omitempty"`
 	Notes   string   `json:"notes,omitempty"`
 	Color   string   `json:"color,omitempty"`

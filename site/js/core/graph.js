@@ -37,7 +37,7 @@ export function buildGraph(doc) {
     const label = labelOf(key);
     words.set(id, {
       id, kind: 'word', key, label,
-      reading: w.reading, tags: w.tags, notes: w.notes,
+      reading: w.reading, meaning: w.meaning || '', tags: w.tags, notes: w.notes,
       color: w.color || DEFAULT_COLORS.word,
       x: pos ? pos[0] : null, y: pos ? pos[1] : null,
     });

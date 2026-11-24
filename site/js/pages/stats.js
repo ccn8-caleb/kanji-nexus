@@ -90,7 +90,7 @@ function matchesKanji(k, q) {
 }
 function matchesWord(w, q) {
   const tagOk = state.tagFilter === 'all' || w.tags.includes(state.tagFilter);
-  return tagOk && (!q || fold(`${w.label} ${w.reading} ${w.notes}`).includes(q));
+  return tagOk && (!q || fold(`${w.label} ${w.reading} ${w.meaning} ${w.notes}`).includes(q));
 }
 
 function renderClusters(graph, q) {
@@ -161,6 +161,7 @@ function wordCard(graph, w) {
         </div>
         <span class="jump-pill">${t('マップ ↗', 'Map ↗')}</span>
       </div>
+      ${w.meaning ? `<div class="entry-meaning">${escapeHtml(w.meaning)}</div>` : ''}
       <div class="mini-chips">
         ${parents.map((k) => `<span class="mini-chip kanji-ref" data-jump-id="${escapeHtml(k.id)}">${escapeHtml(k.label)}</span>`).join('')}
         ${w.tags.map((id) => `<span class="mini-chip tag-badge">${tr(tagMeta(id))}</span>`).join('')}

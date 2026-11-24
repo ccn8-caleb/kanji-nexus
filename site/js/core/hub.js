@@ -311,7 +311,8 @@ export function openDataPanel() {
 // Version: footer line, one-time "updated" notice, debugging handle
 // ---------------------------------------------------------------------------
 function versionFooter() {
-  return `<div class="app-version">Kanji Nexus ${versionLabel()} · <a href="${CHANGELOG_URL}" target="_blank" rel="noopener noreferrer">${t('変更履歴', 'Changelog')}</a></div>`;
+  return `<div class="app-version">Kanji Nexus ${versionLabel()} · <a href="${CHANGELOG_URL}" target="_blank" rel="noopener noreferrer">${t('変更履歴', 'Changelog')}</a>
+    <br>${t('辞書データ', 'Dictionary data')}: <a href="https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project" target="_blank" rel="noopener noreferrer">JMdict</a> © <a href="https://www.edrdg.org/edrdg/licence.html" target="_blank" rel="noopener noreferrer">EDRDG, CC BY-SA 4.0</a></div>`;
 }
 
 const SEEN_VERSION_KEY = 'kanji_nexus_seen_version';

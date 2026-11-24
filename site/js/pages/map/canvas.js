@@ -127,7 +127,7 @@ export function createCanvas({ store, view, onTap, onBackgroundTap, onCameraChan
     if (q || tag !== 'all') {
       for (const w of graph.words.values()) {
         const tagOk = tag === 'all' || w.tags.includes(tag);
-        const qOk = !q || fold(w.label).includes(q) || fold(w.reading).includes(q);
+        const qOk = !q || fold(w.label).includes(q) || fold(w.reading).includes(q) || fold(w.meaning).includes(q);
         if (tagOk && qOk) {
           visibleWords.add(w.id);
           hiWords.add(w.id);

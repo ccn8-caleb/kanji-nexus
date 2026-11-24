@@ -183,6 +183,7 @@ function renderBack(card) {
     <div class="answer-panel">
       <div class="answer-main-row">
         ${reveal}
+        ${card.meaning && state.direction === 'kanji-to-reading' ? `<div class="answer-meaning">${escapeHtml(card.meaning)}</div>` : ''}
         ${card.notes && state.direction === 'kanji-to-reading' ? `<div class="answer-note">${escapeHtml(card.notes)}</div>` : ''}
       </div>
       <div class="context-grid">${boxes.join('')}</div>
@@ -215,6 +216,7 @@ function renderCard() {
       : `<div class="prompt-reading-hero">${escapeHtml(card.reading || '—')}</div>
          <div class="prompt-mask">${escapeHtml([...card.label].map((ch) => (isKanji(ch) ? '〇' : ch)).join(''))}</div>
          ${tags}
+         ${card.meaning ? `<div class="prompt-sub">${escapeHtml(card.meaning)}</div>` : ''}
          ${card.notes ? `<div class="prompt-sub">${escapeHtml(card.notes)}</div>` : ''}
          ${hint}`;
 

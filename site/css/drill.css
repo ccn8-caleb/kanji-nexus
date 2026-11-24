@@ -628,3 +628,10 @@ body {
     display: none;
   }
 }
+
+.answer-meaning {
+  font-size: 15px;
+  line-height: 1.55;
+  text-align: center;
+  max-width: 560px;
+}

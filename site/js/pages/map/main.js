@@ -1,16 +1,17 @@
 // Map page entry: view state, toolbar, add-modals, link mode, keyboard, startup.
 
 import { GRAMMAR_TAGS, LINK_TYPES } from '../../core/constants.js';
-import { escapeHtml, extractKanji, splitReadings, labelOf, fold, joinReadings, debounce } from '../../core/util.js';
-import { kanjiId, wordId, buildGraph as buildGraphFor } from '../../core/graph.js';
+import { escapeHtml, splitReadings, fold, joinReadings, debounce } from '../../core/util.js';
+import { kanjiId } from '../../core/graph.js';
 import * as ops from '../../core/ops.js';
 import { t, tr, onPrefsChange, applyStaticText } from '../../core/prefs.js';
 import { toast, openModal, closeModal, bindImeField, isTyping, anyModalOpen, isCompact } from '../../core/ui.js';
 import { initPage, registerDataAction } from '../../core/hub.js';
-import { trackImeReading, bindEnterFlow } from '../../core/ime.js';
+import { bindEnterFlow } from '../../core/ime.js';
+import { initAddWord } from './add-word.js';
 import { createCanvas } from './canvas.js';
 import { renderInspector, initInspectorGestures } from './inspector.js';
-import { placeMissing, autoArrange, findFreePosition, wordAnchor, getPos, setPos } from './layout.js';
+import { placeMissing, autoArrange, findFreePosition, getPos, setPos } from './layout.js';
 
 const VIEW_PREFS_KEY = 'kanji_nexus_map_view';
 const CAMERA_KEY = 'kanji_nexus_map_camera';
@@ -222,101 +223,8 @@ $('btn-confirm-add-primary').addEventListener('click', () => {
   toast(t(`親漢字「${ch}」を追加しました`, `Added kanji "${ch}"`));
 });
 
-let modalTags = new Set();
-function renderModalTags() {
-  $('new-sec-tags').innerHTML = GRAMMAR_TAGS.map(
-    (tg) => `<button type="button" class="tag-toggle${modalTags.has(tg.id) ? ' active' : ''}" data-mtag="${tg.id}">${tr(tg)}</button>`
-  ).join('');
-}
-$('new-sec-tags').addEventListener('click', (e) => {
-  const id = e.target.closest('[data-mtag]')?.dataset.mtag;
-  if (!id) return;
-  modalTags.has(id) ? modalTags.delete(id) : modalTags.add(id);
-  renderModalTags();
-});
-
-$('new-sec-label').addEventListener('input', (e) => {
-  $('new-sec-kanji-preview').innerHTML = extractKanji(e.target.value)
-    .map((ch) => {
-      const state = store.doc.kanji[ch] ? t('登録済', 'exists') : view.autoCreateKanji ? t('新規作成', 'will create') : t('未登録', 'not registered');
-      return `<span class="kanji-chip small">${escapeHtml(ch)} · ${state}</span>`;
-    })
-    .join('');
-});
-
-// Reading is filled from the IME's kana while typing the word, until you edit it yourself.
-let readingAuto = true;
-const imeReading = trackImeReading($('new-sec-label'), (reading) => {
-  if (!readingAuto) return;
-  // null = capture gave up (word edited by hand): keep what's there for the user to
-  // fix, unless the word itself was cleared.
-  if (reading == null && $('new-sec-label').value) {
-    $('new-sec-reading-hint').hidden = true;
-    return;
-  }
-  $('new-sec-reading').value = reading || '';
-  $('new-sec-reading-hint').hidden = !reading;
-});
-$('new-sec-reading').addEventListener('input', (e) => {
-  readingAuto = !e.target.value;
-  $('new-sec-reading-hint').hidden = true;
-});
-bindEnterFlow([$('new-sec-label'), $('new-sec-reading'), $('new-sec-notes')], () => $('btn-confirm-add-secondary').click());
 bindEnterFlow([$('new-primary-label'), $('new-primary-onyomi'), $('new-primary-kunyomi'), $('new-primary-notes')], () => $('btn-confirm-add-primary').click());
-
-$('btn-open-add-secondary').addEventListener('click', () => {
-  ['new-sec-label', 'new-sec-reading', 'new-sec-notes'].forEach((id) => ($(id).value = ''));
-  readingAuto = true;
-  imeReading.reset();
-  $('new-sec-reading-hint').hidden = true;
-  $('new-sec-kanji-preview').innerHTML = '';
-  modalTags = new Set();
-  renderModalTags();
-  openModal('modal-add-secondary');
-  $('new-sec-label').focus(); // synchronous: iOS only opens the keyboard during the tap
-});
-
-$('btn-confirm-add-secondary').addEventListener('click', () => {
-  const label = $('new-sec-label').value.trim();
-  if (!label) return;
-  const reading = $('new-sec-reading').value.trim();
-  closeModal('modal-add-secondary');
-
-  // Same spelling, different reading → homograph key "label#reading".
-  let key = label;
-  const existing = store.doc.words[key];
-  if (existing && (existing.reading === reading || !reading)) {
-    select(wordId(key), { center: true });
-    return toast(t(`「${label}」は既に登録されています`, `"${label}" already exists`));
-  }
-  if (existing) key = `${label}#${reading}`;
-  if (store.doc.words[key]) return select(wordId(key), { center: true });
-
-  // New kanji go beside an existing sibling (or the selected kanji, or the viewport centre).
-  const center = canvas.viewportCenter();
-  const selectedKanji = store.graph.kanji.get(view.selectedId);
-  const result = store.edit((doc) => {
-    const siblings = extractKanji(labelOf(key)).filter((ch) => doc.kanji[ch]);
-    const res = ops.addWord(doc, key, { reading, tags: [...modalTags], notes: $('new-sec-notes').value.trim() }, {
-      createKanji: view.autoCreateKanji,
-      linkDerivatives: view.autoLink,
-    });
-    const anchor = siblings.length ? getPos(doc, kanjiId(siblings[0])) : selectedKanji ? [selectedKanji.x, selectedKanji.y] : null;
-    for (const ch of res.createdKanji) {
-      const base = anchor ? { x: anchor[0] + 240, y: anchor[1] } : center;
-      const pos = findFreePosition(doc, base.x, base.y);
-      setPos(doc, kanjiId(ch), pos.x, pos.y);
-    }
-    // wordAnchor needs parents, which a fresh graph provides.
-    const base = wordAnchor(doc, buildGraphFor(doc), wordId(key), center);
-    const pos = findFreePosition(doc, base.x, base.y, { excludeId: wordId(key), clearance: 95 });
-    setPos(doc, wordId(key), pos.x, pos.y);
-    return res;
-  });
-  select(wordId(key), { center: true });
-  const extra = result.derivatives?.length ? t(`（派生語リンク ${result.derivatives.length}）`, ` (${result.derivatives.length} derivative links)`) : '';
-  toast(t(`熟語「${label}」を追加しました`, `Added "${label}"`) + extra);
-});
+initAddWord(ctx);
 
 // ---------------------------------------------------------------------------
 // Toolbar
@@ -444,7 +352,7 @@ function renderSearchResults() {
   const q = fold($('m-search-input').value.trim());
   const g = store.graph;
   if (!q) {
-    $('m-search-results').innerHTML = `<div class="muted pad">${t('漢字・熟語・読み・メモで検索できます', 'Search by kanji, word, reading or notes')}</div>`;
+    $('m-search-results').innerHTML = `<div class="muted pad">${t('漢字・熟語・読み・意味・メモで検索できます', 'Search by kanji, word, reading, meaning or notes')}</div>`;
     return;
   }
   const rows = [];
@@ -453,8 +361,8 @@ function renderSearchResults() {
     if (hay.includes(q)) rows.push({ node: k, sub: [joinReadings(k.on), joinReadings(k.kun)].filter(Boolean).join(' ／ '), exact: k.label === q, kind: t('漢字', 'Kanji') });
   }
   for (const w of g.words.values()) {
-    const hay = fold(`${w.label} ${w.reading} ${w.notes}`);
-    if (hay.includes(q)) rows.push({ node: w, sub: w.reading, exact: w.label === q || fold(w.reading) === q, kind: t('語', 'Word') });
+    const hay = fold(`${w.label} ${w.reading} ${w.meaning} ${w.notes}`);
+    if (hay.includes(q)) rows.push({ node: w, sub: [w.reading, w.meaning].filter(Boolean).join(' · '), exact: w.label === q || fold(w.reading) === q, kind: t('語', 'Word') });
   }
   rows.sort((a, b) => Number(b.exact) - Number(a.exact));
   $('m-search-results').innerHTML = rows.length

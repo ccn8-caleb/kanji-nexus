@@ -22,6 +22,18 @@ Everything runs client-side from static files. There are no accounts, no server,
 * **Adding words:** the form is a bottom sheet that stays above the keyboard, and the keyboard's Next/Done keys move through the fields. The **reading fills itself in** from the kana you typed before converting (こうぞう → 構造 gives こうぞう). This is best effort: it stops as soon as you edit the word by hand, and you can always change it.
 * **Drill:** the card fills the screen, rating buttons stay fixed above the tab bar, and filters fold into one line.
 
+### Dictionary
+
+Typing a new word in the add form looks it up in a built-in **JMdict** dictionary (English edition, about 219k entries) and fills in the **meaning**, the **reading** and matching **grammar tags**. Tags come from the part of speech: suru-verb, transitive/intransitive, na-/i-adjective, adverb, usually kana.
+
+* **Your edits win.** A field you've edited yourself is never overwritten.
+* **Homographs** (生物: せいぶつ / なまもの) show chips to switch between entries. When the IME reading matches one, that entry is picked automatically.
+* **Where it shows:** the meaning is stored in the word's `meaning` field and shown in the inspector, stats index and drill. On the Reading → Kanji side of the drill it's a hint for telling homophones apart. Search covers meanings ("structure" finds 構造).
+* **No server involved.** At deploy time CI downloads the latest [jmdict-simplified](https://github.com/scriptin/jmdict-simplified) release and `kanjinexus dict build` splits it into one small file per first character under `site/dict/` (built only, not committed). The app fetches just the file it needs; files you've used keep working offline.
+* **Local development:** without `site/dict/` the lookup simply stays quiet. To try it locally, download a `jmdict-eng-*.json.tgz` release, extract it, and run `go run ./tools/kanjinexus dict build <jmdict-eng.json> site/dict`.
+
+Dictionary data: [JMdict](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project), property of the Electronic Dictionary Research and Development Group, used under its [licence](https://www.edrdg.org/edrdg/licence.html) (CC BY-SA 4.0).
+
 ### Install & offline
 
 Kanji Nexus is an installable web app (`site/manifest.webmanifest`).
@@ -87,7 +99,7 @@ The starter sample lives in four files in `site/data/`. Backups and transfer lin
 { "構": {"on":["コウ"],"kun":["かま.える","かま.う"]} }
 
 // words.json — keyed by written form, sorted by reading
-{ "構造": {"reading":"こうぞう","notes":"物事の組み立て・仕組み"},
+{ "構造": {"reading":"こうぞう","meaning":"structure; construction; …","notes":"物事の組み立て・仕組み"},
   "構成": {"reading":"こうせい","tags":["suru"]} }
 
 // links.json — undirected [word, word, type]
@@ -98,7 +110,7 @@ The starter sample lives in four files in `site/data/`. Backups and transfer lin
 ```
 
 * **Parent kanji are never stored.** A word attaches to every registered kanji in its spelling, with `々` resolving to the preceding kanji (人々 → 人). Delete a kanji and its words stay; add one and matching words attach to it.
-* **Optional fields** (`notes`, `tags`, `color`) are omitted when empty or default.
+* **Optional fields** (`meaning`, `notes`, `tags`, `color`) are omitted when empty or default.
 * **Homographs** use a `#` suffix on the key: `"生物#なまもの"` displays as 生物.
 * **Layout is disposable.** Entries missing from `layout.json` are placed automatically next to their kanji. Delete the file's contents (`{"kanji":{},"words":{}}`) and the map auto-arranges itself.
 * Tags: `suru`, `intransitive`, `transitive`, `na-adj`, `i-adj`, `adverb`, `kana`. Link types: `related`, `antonym`, `synonym`, `derivative`, `lookalike`. Both lists are defined in `site/js/core/constants.js`.
@@ -110,6 +122,8 @@ go run ./tools/kanjinexus lint                    # unknown tags/types, dangling
 go run ./tools/kanjinexus fmt [-check]            # rewrite site/data in canonical order and layout
 go run ./tools/kanjinexus prune                   # drop dangling links and stale layout entries
 go run ./tools/kanjinexus import backup.json      # replace site/data with an app backup
+go run ./tools/kanjinexus dict build <jmdict-eng.json> site/dict   # dictionary files (CI does this)
+go run ./tools/kanjinexus dict fill  <jmdict-eng.json>             # add missing meanings to site/data
 ```
 
 To update the starter sample from the app: edit it in the browser, then **💾 Data → Download .json**. Run `import` on the file, then `lint`, and commit. The Go formatter and the app's serializer produce identical bytes, so diffs only show real changes.

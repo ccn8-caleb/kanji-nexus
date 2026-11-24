@@ -4,6 +4,23 @@ Versions follow [semver](https://semver.org/). The version lives in
 `site/js/core/version.js`; every release needs an entry here (CI checks it). Each
 deploy also carries a build id (commit hash), shown next to the version in the app.
 
+## [0.6.0] — 2026-11-24 — Dictionary
+
+### Added
+- Built-in dictionary (JMdict, English): typing a new word fills in its **meaning**,
+  **reading** and matching **grammar tags** (suru-verb, transitive/intransitive,
+  na-/i-adjective, adverb, usually kana). Fields you edit yourself are never
+  overwritten; words with several entries (生物: せいぶつ / なまもの) offer chips to
+  switch, and the IME reading picks the right one automatically.
+- Words have a new optional `meaning` field, shown in the inspector, stats index and
+  drill (on the answer side, and as a hint when drilling Reading → Kanji), and
+  searchable (e.g. "structure" finds 構造).
+- The starter sample now has meanings.
+- `kanjinexus dict build` (deploy) and `kanjinexus dict fill` (fill missing meanings
+  in `site/data`).
+
+Dictionary data: JMdict © EDRDG, CC BY-SA 4.0.
+
 ## [0.5.0] — 2026-11-24
 
 ### Added

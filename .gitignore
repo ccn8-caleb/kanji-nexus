@@ -1,1 +1,3 @@
 compose.yml
+# dictionary shards are built at deploy time (kanjinexus dict build)
+site/dict/

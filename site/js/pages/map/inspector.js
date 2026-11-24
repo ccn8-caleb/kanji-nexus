@@ -138,6 +138,7 @@ function renderSummary(ctx, node, common) {
   const section = (title, body) => (body ? `<div class="field-group"><label class="field-label">${title}</label><div class="chip-row">${body}</div></div>` : '');
 
   let reading;
+  let meaning = '';
   let related = '';
   if (isKanji) {
     reading = [joinReadings(node.on), joinReadings(node.kun)].filter(Boolean).join(' ／ ') || t('読み未登録', 'No reading saved');
@@ -145,6 +146,7 @@ function renderSummary(ctx, node, common) {
     related = section(t(`関連する熟語 (${kids.length})`, `Compounds (${kids.length})`), kids.map((wid) => chip(wid, graph.words.get(wid).label)).join(''));
   } else {
     reading = node.reading || t('読み未登録', 'No reading saved');
+    meaning = node.meaning;
     const tags = node.tags.map((id) => `<span class="tag-toggle active">${tr(GRAMMAR_TAGS.find((g) => g.id === id))}</span>`).join('');
     related =
       section(t('品詞・用法', 'Grammar & usage'), tags) +
@@ -168,6 +170,7 @@ function renderSummary(ctx, node, common) {
       ${isKanji ? '' : `<button type="button" class="tb-btn" data-insp="link">🔗 ${t('リンク', 'Link')}</button>`}
       <button type="button" class="tb-btn danger" data-insp="delete" aria-label="${t('削除', 'Delete')}">🗑</button>
     </div>
+    ${meaning ? `<div class="summary-meaning">${escapeHtml(meaning)}</div>` : ''}
     ${node.notes ? `<div class="summary-notes">${escapeHtml(node.notes)}</div>` : ''}
     ${related}
     ${common.dict}`;
@@ -284,6 +287,10 @@ function renderWord(ctx, node, common) {
       <input type="text" id="insp-reading" class="field-input" value="${escapeHtml(node.reading)}">
     </div>
     <div class="field-group">
+      <label class="field-label">${t('意味', 'Meaning')}</label>
+      <textarea id="insp-meaning" class="field-textarea short" lang="en">${escapeHtml(node.meaning)}</textarea>
+    </div>
+    <div class="field-group">
       <label class="field-label">
         <span>${t('構成親漢字', 'Constituent Kanji')}</span>
         ${parentIds.length ? `<button type="button" id="btn-recenter-compound" class="hint-chip">${t('親漢字の中心へ再配置', 'Center between parents')}</button>` : ''}
@@ -331,6 +338,7 @@ function renderWord(ctx, node, common) {
     });
   });
   bindField(ctx, elBody.querySelector('#insp-reading'), (doc, v) => (doc.words[node.key].reading = v.trim()));
+  bindField(ctx, elBody.querySelector('#insp-meaning'), (doc, v) => (doc.words[node.key].meaning = v.trim()));
   bindField(ctx, elBody.querySelector('#insp-notes'), (doc, v) => (doc.words[node.key].notes = v));
 
   elBody.querySelector('#btn-recenter-compound')?.addEventListener('click', () => {

@@ -42,9 +42,9 @@ export function deleteKanji(doc, ch) {
 // Kanji in the word's label that are not registered yet.
 export const missingKanji = (doc, key) => extractKanji(labelOf(key)).filter((ch) => !doc.kanji[ch]);
 
-export function addWord(doc, key, { reading = '', tags = [], notes = '' } = {}, { createKanji = true, linkDerivatives = true } = {}) {
+export function addWord(doc, key, { reading = '', meaning = '', tags = [], notes = '' } = {}, { createKanji = true, linkDerivatives = true } = {}) {
   if (!key || doc.words[key]) return { ok: false, exists: Boolean(doc.words[key]), createdKanji: [] };
-  doc.words[key] = { reading, tags, notes };
+  doc.words[key] = { reading, meaning, tags, notes };
   const createdKanji = createKanji ? missingKanji(doc, key) : [];
   for (const ch of createdKanji) addKanji(doc, ch);
   const derivatives = linkDerivatives ? autoLinkDerivatives(doc, key) : [];

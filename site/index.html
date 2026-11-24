@@ -173,7 +173,12 @@
       <div class="field-group">
         <label class="field-label" data-ja="読み (ひらがな)" data-en="Reading (hiragana)">読み (ひらがな)</label>
         <input type="text" id="new-sec-reading" lang="ja" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" class="field-input" placeholder="例: こうぞう" data-placeholder-ja="例: こうぞう" data-placeholder-en="e.g. こうぞう">
-        <div id="new-sec-reading-hint" class="field-hint" hidden data-ja="✓ 入力時のかなから自動入力（編集できます）" data-en="✓ Filled from what you typed (editable)">✓ 入力時のかなから自動入力（編集できます）</div>
+        <div id="new-sec-reading-hint" class="field-hint" hidden></div>
+      </div>
+      <div class="field-group">
+        <label class="field-label"><span data-ja="意味" data-en="Meaning">意味</span><span id="dict-status" class="field-hint dict-status"></span></label>
+        <input type="text" id="new-sec-meaning" class="field-input" lang="en" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-placeholder-ja="辞書から自動入力・自由に編集" data-placeholder-en="Filled from the dictionary — edit freely">
+        <div id="dict-candidates" class="chip-row"></div>
       </div>
       <div class="field-group">
         <label class="field-label" data-ja="品詞・用法タグ" data-en="Grammar & usage tags">品詞・用法タグ</label>

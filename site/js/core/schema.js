@@ -4,7 +4,7 @@
 //   {
 //     schema: 2,
 //     kanji:  { "構": { on: ["コウ"], kun: ["かま.える"], notes?, color? } },
-//     words:  { "構造": { reading: "こうぞう", tags?: [], notes?, color? } },
+//     words:  { "構造": { reading: "こうぞう", meaning?: "structure; …", tags?: [], notes?, color? } },
 //     links:  [ ["構造", "構成", "synonym"] ],             // undirected
 //     layout: { kanji: { "構": [x, y] }, words: { "構造": [x, y] } }
 //   }
@@ -46,6 +46,7 @@ export function normalize(raw) {
     if (!key) continue;
     doc.words[key] = {
       reading: str(w?.reading).trim(),
+      meaning: str(w?.meaning).trim(),
       tags: [...new Set(strList(w?.tags).filter((t) => TAG_IDS.has(t)))],
       notes: str(w?.notes),
       ...(w?.color ? { color: str(w.color) } : {}),
@@ -102,6 +103,7 @@ function compactKanji(k) {
 
 function compactWord(w) {
   const o = { reading: w.reading || '' };
+  if (w.meaning) o.meaning = w.meaning;
   if (w.tags?.length) o.tags = w.tags;
   if (w.notes) o.notes = w.notes;
   if (w.color && w.color !== DEFAULT_COLORS.word) o.color = w.color;
