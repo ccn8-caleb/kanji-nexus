@@ -42,12 +42,10 @@ jobs:
       - name: Check data formatting
         run: go run ./tools/kanjinexus fmt -check
 
-  deploy:
+  # Package site/ as the Pages artifact
+  build:
     needs: lint
     if: github.event_name != 'pull_request'
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -58,6 +56,18 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           path: './site'
+
+  # Deploy in its own job: deploy-pages can miss an artifact uploaded moments
+  # earlier in the same job (actions/deploy-pages#451). Separate jobs give the
+  # artifact time to become listable, and if the lookup still fails,
+  # "Re-run failed jobs" retries only this job without uploading a duplicate.
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
