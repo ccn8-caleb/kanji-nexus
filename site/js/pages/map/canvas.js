@@ -9,7 +9,7 @@ import { isCompact } from '../../core/ui.js';
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 2.8;
 
-export function createCanvas({ store, view, onTap, onBackgroundTap, onCameraChange }) {
+export function createCanvas({ store, view, onTap, onBackgroundTap, onCameraChange, onContextMenu }) {
   const elContainer = document.getElementById('canvas-container');
   const elWorld = document.getElementById('world');
   const elEdgesParent = document.getElementById('edges-primary-layer');
@@ -104,6 +104,11 @@ export function createCanvas({ store, view, onTap, onBackgroundTap, onCameraChan
     camera.x = r.width / 2 - ((minX + maxX) / 2) * camera.scale;
     camera.y = r.height / 2 - ((minY + maxY) / 2) * camera.scale;
     apply(animate);
+  }
+
+  function clientToWorld(x, y) {
+    const r = elContainer.getBoundingClientRect();
+    return { x: Math.round((x - r.left - camera.x) / camera.scale), y: Math.round((y - r.top - camera.y) / camera.scale) };
   }
 
   function viewportCenter() {
@@ -251,9 +256,45 @@ export function createCanvas({ store, view, onTap, onBackgroundTap, onCameraChan
   let panStart = { x: 0, y: 0 };
   let pinchStart = { dist: 0, scale: 1 };
 
+  // Context menu: right-click with a mouse, long-press (≈0.5 s, no movement) on touch.
+  let longPress = null; // { timer, x, y }
+  let longPressFired = false;
+  let lastPointerType = 'mouse';
+  const cancelLongPress = () => {
+    if (longPress) clearTimeout(longPress.timer);
+    longPress = null;
+  };
+  function fireContextMenu(target, x, y) {
+    const nodeId = target?.closest?.('[data-node-id]')?.dataset.nodeId || null;
+    onContextMenu?.(nodeId, x, y, clientToWorld(x, y));
+  }
+  elContainer.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    if (lastPointerType !== 'mouse') return; // touch uses our own long-press timer
+    fireContextMenu(e.target, e.clientX, e.clientY);
+  });
+
   elContainer.addEventListener('pointerdown', (e) => {
+    lastPointerType = e.pointerType;
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    longPressFired = false;
+    cancelLongPress();
+    if (e.pointerType !== 'mouse' && pointers.size === 1) {
+      const target = e.target;
+      longPress = {
+        x: e.clientX,
+        y: e.clientY,
+        timer: setTimeout(() => {
+          longPress = null;
+          longPressFired = true;
+          mode = null; // the gesture becomes a menu, not a drag/pan/tap
+          elContainer.classList.remove('grabbing');
+          navigator.vibrate?.(12);
+          fireContextMenu(target, e.clientX, e.clientY);
+        }, 520),
+      };
+    } else cancelLongPress();
 
     if (pointers.size === 2) {
       mode = 'pinch';
@@ -280,6 +321,7 @@ export function createCanvas({ store, view, onTap, onBackgroundTap, onCameraChan
   elContainer.addEventListener('pointermove', (e) => {
     if (!pointers.has(e.pointerId)) return;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (longPress && Math.hypot(e.clientX - longPress.x, e.clientY - longPress.y) > 8) cancelLongPress();
 
     if (mode === 'pinch' && pointers.size === 2) {
       const [a, b] = [...pointers.values()];
@@ -312,6 +354,14 @@ export function createCanvas({ store, view, onTap, onBackgroundTap, onCameraChan
   function endPointer(e) {
     pointers.delete(e.pointerId);
     elContainer.classList.remove('grabbing');
+    cancelLongPress();
+    if (longPressFired) {
+      if (pointers.size === 0) {
+        mode = null;
+        dragId = null;
+      }
+      return;
+    }
     if (mode === 'drag' && dragId) {
       if (moved) store.commit('layout');
       else onTap(dragId);
@@ -336,5 +386,5 @@ export function createCanvas({ store, view, onTap, onBackgroundTap, onCameraChan
     { passive: false }
   );
 
-  return { render, fit, focusOn, centerOn, zoomBy, resetZoom, viewportCenter, getView, restoreView };
+  return { render, fit, focusOn, centerOn, zoomBy, resetZoom, viewportCenter, clientToWorld, getView, restoreView };
 }

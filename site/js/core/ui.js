@@ -1,12 +1,18 @@
 // Small shared UI primitives: toast, modals, bilingual tooltips, IME-safe inputs.
 
 import { getLang } from './prefs.js';
+import { icon } from './icons.js';
 
 // ---------------------------------------------------------------------------
-// Compact (phone) layout: one breakpoint shared by CSS (max-width: 768px) and JS.
+// Layout modes, shared by CSS and JS:
+//   phone   (max-width: 699px)  bottom tab bar, bottom sheets
+//   tablet  wider + coarse pointer: desktop layout with touch-sized targets
+//   desktop wider + fine pointer
 // ---------------------------------------------------------------------------
-const compactQuery = matchMedia('(max-width: 768px)');
+const compactQuery = matchMedia('(max-width: 699px)');
+const touchQuery = matchMedia('(pointer: coarse)');
 export const isCompact = () => compactQuery.matches;
+export const isTouch = () => touchQuery.matches;
 export const onCompactChange = (fn) => compactQuery.addEventListener('change', fn);
 
 // On-screen keyboards shrink the *visual* viewport but not fixed-position layout on
@@ -54,6 +60,95 @@ export function toast(msg, { action } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Popover menus (dropdowns and context menus)
+//   openMenu({ anchor | x,y, items: [{ id, label, icon?, checked?, disabled?, hint?, run }
+//                                     | { separator: true } | { heading }] })
+// Closes on outside click, Escape, scroll of the anchor's page, or choosing an item.
+// Arrow keys move between items; Enter/Space chooses.
+// ---------------------------------------------------------------------------
+let openMenuEl = null;
+export function closeMenu() {
+  openMenuEl?.remove();
+  openMenuEl = null;
+}
+
+export function openMenu({ anchor, x, y, items, align = 'start' }) {
+  closeMenu();
+  document.querySelector('.bilingual-tooltip')?.classList.remove('visible'); // don't cover the menu
+  const el = document.createElement('div');
+  el.className = 'popover-menu';
+  el.setAttribute('role', 'menu');
+  el.innerHTML = items
+    .map((it, i) => {
+      if (it.separator) return '<div class="menu-sep" role="separator"></div>';
+      if (it.heading) return `<div class="menu-heading">${it.heading}</div>`;
+      const role = it.checked === undefined ? 'menuitem' : 'menuitemcheckbox';
+      return `<button type="button" class="menu-item${it.danger ? ' danger' : ''}" role="${role}" data-menu-index="${i}"
+        ${it.checked !== undefined ? `aria-checked="${it.checked}"` : ''} ${it.disabled ? 'disabled' : ''}>
+        <span class="menu-icon">${it.checked !== undefined ? (it.checked ? icon('check') : '') : it.icon ? icon(it.icon) : ''}</span>
+        <span class="menu-label">${it.label}</span>${it.hint ? `<kbd class="menu-hint">${it.hint}</kbd>` : ''}</button>`;
+    })
+    .join('');
+  document.body.appendChild(el);
+  openMenuEl = el;
+  el._anchor = anchor || null;
+
+  // Position: under the anchor (or at x,y), kept inside the viewport.
+  const r = anchor ? anchor.getBoundingClientRect() : { left: x, right: x, bottom: y, top: y };
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  let left = align === 'end' ? r.right - w : r.left;
+  let top = r.bottom + (anchor ? 6 : 2);
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  if (top + h > window.innerHeight - 8) top = Math.max(8, (anchor ? r.top - 6 : r.top) - h);
+  el.style.left = `${left}px`;
+  el.style.top = `${top}px`;
+
+  const buttons = [...el.querySelectorAll('.menu-item:not([disabled])')];
+  el.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-menu-index]');
+    if (!b) return;
+    const item = items[Number(b.dataset.menuIndex)];
+    closeMenu();
+    item.run?.();
+  });
+  el.addEventListener('keydown', (e) => {
+    const i = buttons.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') buttons[(i + 1) % buttons.length]?.focus();
+    else if (e.key === 'ArrowUp') buttons[(i - 1 + buttons.length) % buttons.length]?.focus();
+    else if (e.key === 'Escape') {
+      closeMenu();
+      anchor?.focus();
+    } else return;
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  // Keyboard users land on the first item; pointer users keep focus where it was.
+  if (anchor && document.activeElement === anchor) buttons[0]?.focus({ preventScroll: true });
+  return el;
+}
+// Anchor buttons toggle their menu: a second click closes it.
+export function toggleMenu(options) {
+  if (openMenuEl && options.anchor && openMenuEl._anchor === options.anchor) return closeMenu();
+  return openMenu(options);
+}
+
+document.addEventListener(
+  'pointerdown',
+  (e) => {
+    if (openMenuEl && !openMenuEl.contains(e.target) && !e.target.closest?.('[data-menu-anchor]')) closeMenu();
+  },
+  true
+);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && openMenuEl) {
+    closeMenu();
+    e.stopImmediatePropagation();
+  }
+});
+window.addEventListener('resize', closeMenu);
+
+// ---------------------------------------------------------------------------
 // Swipe gestures on a sheet's grab area: onDown / onUp fire after a 60px drag.
 // ---------------------------------------------------------------------------
 export function bindSwipe(handle, { onDown, onUp }) {
@@ -79,6 +174,17 @@ export function bindSwipe(handle, { onDown, onUp }) {
 export const openModal = (id) => document.getElementById(id)?.classList.add('open');
 export const closeModal = (id) => document.getElementById(id)?.classList.remove('open');
 export const anyModalOpen = () => Boolean(document.querySelector('.modal-backdrop.open'));
+
+// fn() runs whenever the modal closes, however it was closed (✕, Done, Esc, backdrop, swipe).
+export function onModalClose(id, fn) {
+  const el = document.getElementById(id);
+  let wasOpen = el.classList.contains('open');
+  new MutationObserver(() => {
+    const open = el.classList.contains('open');
+    if (wasOpen && !open) fn();
+    wasOpen = open;
+  }).observe(el, { attributes: true, attributeFilter: ['class'] });
+}
 
 document.addEventListener('click', (e) => {
   const closer = e.target.closest('[data-close-modal]');
@@ -124,7 +230,7 @@ export function choose({ title, message, options }) {
     el.className = 'modal-backdrop open choose-dialog';
     el.innerHTML = `
       <div class="modal-card">
-        <div class="modal-title"><span></span><button type="button" class="tb-btn" data-choice="">✕</button></div>
+        <div class="modal-title"><span></span><button type="button" class="icon-btn small" data-choice="" aria-label="Close">${icon('close')}</button></div>
         <p class="panel-note choose-message"></p>
         <div class="modal-actions">${options
           .map((o) => `<button type="button" class="tb-btn ${o.tone === 'danger' ? 'danger' : o.tone === 'primary' ? 'primary' : ''}" data-choice="${o.id}"></button>`)

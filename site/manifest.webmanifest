@@ -1,6 +1,6 @@
 {
-  "name": "Kanji Nexus 漢字ネットワーク",
-  "short_name": "漢字Nexus",
+  "name": "漢字ネクサス Kanji Nexus",
+  "short_name": "漢字ネクサス",
   "description": "Map, analyze, and drill kanji and compounds.",
   "lang": "ja",
   "start_url": "./index.html",

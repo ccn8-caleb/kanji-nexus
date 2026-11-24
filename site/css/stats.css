@@ -501,3 +501,13 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.jump-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.jump-pill .icon {
+  width: 12px;
+  height: 12px;
+}

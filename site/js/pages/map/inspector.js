@@ -6,7 +6,9 @@ import { kanjiId, wordId } from '../../core/graph.js';
 import { remapSrs } from '../../core/srs.js';
 import * as ops from '../../core/ops.js';
 import { t, tr } from '../../core/prefs.js';
-import { toast, bindImeField, bindSwipe, isCompact } from '../../core/ui.js';
+import { toast, bindImeField, bindSwipe, isCompact, isTouch } from '../../core/ui.js';
+import { icon } from '../../core/icons.js';
+import { attachKanaInput } from '../../core/kana.js';
 import { findFreePosition, wordAnchor, setPos } from './layout.js';
 
 const elPanel = document.getElementById('inspector-panel');
@@ -46,7 +48,9 @@ export function renderInspector(ctx) {
     elPanel.classList.remove('open', 'full');
     return;
   }
-  const summary = isCompact() && view.inspectorMode !== 'edit';
+  // Touch devices (phones and tablets) open read-first, so a stray tap never brings up
+  // the keyboard; mouse users get the edit form straight away.
+  const summary = isTouch() && view.inspectorMode !== 'edit';
   elPanel.classList.add('open');
   elPanel.classList.toggle('full', isCompact() && (view.sheetFull || !summary));
   const isKanji = node.kind === 'kanji';
@@ -57,7 +61,7 @@ export function renderInspector(ctx) {
     (c) => `<button type="button" class="swatch-btn${node.color === c ? ' active' : ''}" data-set-color="${c}" style="background:${c};"></button>`
   ).join('');
   const dict = dictionaryLinks(node.label, node.kind)
-    .map((d) => `<a class="dict-link" href="${d.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(d.name)} ↗</a>`)
+    .map((d) => `<a class="dict-link" href="${d.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(d.name)}${icon('external')}</a>`)
     .join('');
 
   const common = {
@@ -76,7 +80,7 @@ export function renderInspector(ctx) {
       </div>`,
     danger: `
       <div class="danger-zone">
-        <button type="button" id="btn-delete-node-init" class="tb-btn danger">🗑 ${isKanji ? t('この漢字を削除', 'Delete Kanji') : t('この熟語を削除', 'Delete Compound')}</button>
+        <button type="button" id="btn-delete-node-init" class="tb-btn danger">${icon('delete')}${isKanji ? t('この漢字を削除', 'Delete Kanji') : t('この熟語を削除', 'Delete Compound')}</button>
         <div id="delete-confirm-group" class="chip-row" hidden>
           <button type="button" id="btn-delete-node-confirm" class="tb-btn danger-solid">${t('確定', 'Delete')}</button>
           <button type="button" id="btn-delete-node-cancel" class="tb-btn">${t('取消', 'Cancel')}</button>
@@ -88,8 +92,8 @@ export function renderInspector(ctx) {
 
   if (isKanji) renderKanji(ctx, node, common);
   else renderWord(ctx, node, common);
-  if (isCompact()) {
-    elBody.insertAdjacentHTML('afterbegin', `<button type="button" class="tb-btn" data-insp="done">✓ ${t('編集を終える', 'Done editing')}</button>`);
+  if (isTouch()) {
+    elBody.insertAdjacentHTML('afterbegin', `<button type="button" class="tb-btn" data-insp="done">${icon('check')}${t('編集を終える', 'Done editing')}</button>`);
     elBody.querySelector('[data-insp="done"]').addEventListener('click', () => {
       view.inspectorMode = 'summary';
       view.sheetFull = false;
@@ -121,7 +125,7 @@ export function renderInspector(ctx) {
   elBody.querySelector('#btn-delete-node-confirm').addEventListener('click', () => deleteNode(ctx, node));
 }
 
-function deleteNode(ctx, node) {
+export function deleteNode(ctx, node) {
   ctx.view.selectedId = null;
   ctx.store.edit((doc) => (node.kind === 'kanji' ? ops.deleteKanji(doc, node.key) : ops.deleteWord(doc, node.key)));
   toast(t(`「${node.label}」を削除しました`, `Deleted "${node.label}"`), {
@@ -166,9 +170,9 @@ function renderSummary(ctx, node, common) {
       <span class="summary-reading">${escapeHtml(reading)}</span>
     </div>
     <div class="summary-actions">
-      <button type="button" class="tb-btn primary" data-insp="edit">✏️ ${t('編集', 'Edit')}</button>
-      ${isKanji ? '' : `<button type="button" class="tb-btn" data-insp="link">🔗 ${t('リンク', 'Link')}</button>`}
-      <button type="button" class="tb-btn danger" data-insp="delete" aria-label="${t('削除', 'Delete')}">🗑</button>
+      <button type="button" class="tb-btn primary" data-insp="edit">${icon('edit')}${t('編集', 'Edit')}</button>
+      ${isKanji ? '' : `<button type="button" class="tb-btn" data-insp="link">${icon('link')}${t('リンク', 'Link')}</button>`}
+      <button type="button" class="tb-btn danger icon-only" data-insp="delete" aria-label="${t('削除', 'Delete')}">${icon('delete')}</button>
     </div>
     ${meaning ? `<div class="summary-meaning">${escapeHtml(meaning)}</div>` : ''}
     ${node.notes ? `<div class="summary-notes">${escapeHtml(node.notes)}</div>` : ''}
@@ -246,6 +250,8 @@ function renderKanji(ctx, node, common) {
     ctx.view.selectedId = kanjiId(next);
     store.edit((doc) => ops.renameKanji(doc, node.key, next));
   });
+  attachKanaInput(elBody.querySelector('#insp-on'), { script: 'katakana', multi: true });
+  attachKanaInput(elBody.querySelector('#insp-kun'), { script: 'hiragana', multi: true, keep: '.-' });
   bindField(ctx, elBody.querySelector('#insp-on'), (doc, v) => (doc.kanji[node.key].on = splitReadings(v)));
   bindField(ctx, elBody.querySelector('#insp-kun'), (doc, v) => (doc.kanji[node.key].kun = splitReadings(v)));
   bindField(ctx, elBody.querySelector('#insp-notes'), (doc, v) => (doc.kanji[node.key].notes = v));
@@ -272,7 +278,7 @@ function renderWord(ctx, node, common) {
         <span class="link-target" data-jump-node="${escapeHtml(id)}">${escapeHtml(graph.words.get(id).label)}</span>
         <div class="chip-row">
           <select class="field-select compact" data-change-link-type="${escapeHtml(id)}">${typeOptions(type)}</select>
-          <button type="button" class="tb-btn small" data-unlink-id="${escapeHtml(id)}">✕</button>
+          <button type="button" class="icon-btn small" data-unlink-id="${escapeHtml(id)}" aria-label="${t('リンク解除', 'Unlink')}">${icon('close')}</button>
         </div>
       </div>`)
     .join('');
@@ -337,6 +343,7 @@ function renderWord(ctx, node, common) {
       if (view.autoCreateKanji) ops.missingKanji(doc, next).forEach((ch) => ops.addKanji(doc, ch));
     });
   });
+  attachKanaInput(elBody.querySelector('#insp-reading'), { script: 'hiragana' });
   bindField(ctx, elBody.querySelector('#insp-reading'), (doc, v) => (doc.words[node.key].reading = v.trim()));
   bindField(ctx, elBody.querySelector('#insp-meaning'), (doc, v) => (doc.words[node.key].meaning = v.trim()));
   bindField(ctx, elBody.querySelector('#insp-notes'), (doc, v) => (doc.words[node.key].notes = v));

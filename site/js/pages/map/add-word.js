@@ -1,23 +1,29 @@
-// "＋ Word" sheet: kanji preview, tags, IME reading capture, and dictionary auto-fill.
+// "Add words" form: kanji preview, tags, IME reading capture, dictionary auto-fill,
+// built for back-to-back entry — Enter saves and clears the form for the next word
+// (waiting a moment for the dictionary if it's still looking up), Done / Esc closes
+// it and shows the last word added. The reading field formats to hiragana and
+// accepts romaji.
 //
 // As you type the word, JMdict is looked up and fills in the meaning, the reading
 // and matching grammar tags. Anything you edit yourself is never overwritten. When a
 // spelling has several entries (生物: せいぶつ / なまもの) the one matching the IME
 // reading is picked, and chips let you switch.
 
+import { icon } from '../../core/icons.js';
 import { GRAMMAR_TAGS } from '../../core/constants.js';
 import { escapeHtml, extractKanji, labelOf, debounce } from '../../core/util.js';
 import { kanjiId, wordId, buildGraph } from '../../core/graph.js';
 import * as ops from '../../core/ops.js';
 import { t, tr } from '../../core/prefs.js';
-import { toast, openModal, closeModal, bindImeField } from '../../core/ui.js';
-import { trackImeReading, bindEnterFlow } from '../../core/ime.js';
+import { openModal, onModalClose, bindImeField } from '../../core/ui.js';
+import { trackImeReading } from '../../core/ime.js';
+import { attachKanaInput } from '../../core/kana.js';
 import { lookup, pickEntry, meaningText, tagsFor, DICT_CREDIT } from '../../core/dict.js';
 import { findFreePosition, wordAnchor, getPos, setPos } from './layout.js';
 
 const $ = (id) => document.getElementById(id);
 
-// ctx: { store, view, canvas, select }
+// ctx: { store, view, canvas, select }. Returns { open(atWorldPoint?) }.
 export function initAddWord(ctx) {
   const { store, view, canvas, select } = ctx;
   const els = {
@@ -30,7 +36,12 @@ export function initAddWord(ctx) {
     preview: $('new-sec-kanji-preview'),
     candidates: $('dict-candidates'),
     status: $('dict-status'),
+    list: $('word-added-list'),
+    formStatus: $('word-form-status'),
   };
+  let added = [];
+  let at = null;
+  attachKanaInput(els.reading, { script: 'hiragana' });
 
   // Where each field's value came from: 'none' | 'ime' | 'stale' (IME gave up) | 'dict' | 'user'.
   let readingFrom = 'none';
@@ -50,7 +61,7 @@ export function initAddWord(ctx) {
   }
 
   function renderReadingHint() {
-    const text = readingFrom === 'ime' ? t('✓ 入力時のかなから自動入力（編集できます）', '✓ Filled from what you typed (editable)') : readingFrom === 'dict' ? t('📖 辞書から自動入力（編集できます）', '📖 Filled from the dictionary (editable)') : '';
+    const text = readingFrom === 'ime' ? t('入力時のかなから自動入力（編集できます）', 'Filled from what you typed (editable)') : readingFrom === 'dict' ? t('辞書から自動入力（編集できます）', 'Filled from the dictionary (editable)') : '';
     els.readingHint.textContent = text;
     els.readingHint.hidden = !text;
   }
@@ -67,7 +78,7 @@ export function initAddWord(ctx) {
   function setStatus(kind) {
     const credit = `<a href="${DICT_CREDIT.url}" target="_blank" rel="noopener noreferrer">${DICT_CREDIT.name}</a>`;
     els.status.innerHTML =
-      kind === 'found' ? `📖 ${credit}` : kind === 'none' ? t('辞書に見つかりません', 'Not in the dictionary') : kind === 'loading' ? t('辞書を検索中…', 'Looking up…') : kind === 'offline' ? t('辞書を読み込めません（オフライン）', 'Dictionary unavailable offline') : '';
+      kind === 'found' ? `${icon('dictionary')}${credit}` : kind === 'none' ? t('辞書に見つかりません', 'Not in the dictionary') : kind === 'loading' ? t('辞書を検索中…', 'Looking up…') : kind === 'offline' ? t('辞書を読み込めません（オフライン）', 'Dictionary unavailable offline') : '';
   }
 
   // ---- dictionary ----
@@ -112,7 +123,16 @@ export function initAddWord(ctx) {
     renderCandidates();
   }
 
-  const runLookup = debounce(async () => {
+  // The current lookup (word + promise), so saving can wait for it.
+  let inflight = { word: null, promise: Promise.resolve() };
+  const lookupNow = () => {
+    const word = labelOf(els.label.value.trim());
+    if (inflight.word !== word) inflight = { word, promise: doLookup() };
+    return inflight.promise;
+  };
+  const runLookup = debounce(lookupNow, 250);
+
+  async function doLookup() {
     const seq = ++lookupSeq;
     const word = labelOf(els.label.value.trim());
     if (!word) {
@@ -137,7 +157,7 @@ export function initAddWord(ctx) {
     setStatus('found');
     const reading = readingFrom === 'user' ? els.reading.value : imeReading;
     apply(entries.indexOf(pickEntry(entries, reading)));
-  }, 250);
+  }
 
   // ---- events ----
   els.tags.addEventListener('click', (e) => {
@@ -189,10 +209,19 @@ export function initAddWord(ctx) {
   });
   els.meaning.addEventListener('input', () => (meaningFrom = els.meaning.value ? 'user' : 'none'));
 
-  bindEnterFlow([els.label, els.reading, els.meaning, els.notes], () => $('btn-confirm-add-secondary').click());
+  // Enter in any field saves this word and starts the next (Tab moves between fields).
+  for (const el of [els.label, els.reading, els.meaning, els.notes]) {
+    el.setAttribute('enterkeyhint', 'done');
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
+      e.preventDefault();
+      save();
+    });
+  }
+  $('btn-confirm-add-secondary').addEventListener('click', () => save());
 
-  // ---- open / submit ----
-  $('btn-open-add-secondary').addEventListener('click', () => {
+  // ---- open / save ----
+  function resetForm() {
     for (const el of [els.label, els.reading, els.meaning, els.notes]) el.value = '';
     readingFrom = meaningFrom = 'none';
     imeReading = '';
@@ -201,34 +230,60 @@ export function initAddWord(ctx) {
     entries = [];
     chosen = -1;
     lookupSeq++;
+    inflight = { word: null, promise: Promise.resolve() };
     ime.reset();
     els.preview.innerHTML = '';
     setStatus('');
     renderReadingHint();
     renderTags();
     renderCandidates();
-    openModal('modal-add-secondary');
-    els.label.focus(); // synchronous: iOS only opens the keyboard during the tap
-  });
+  }
 
-  $('btn-confirm-add-secondary').addEventListener('click', () => {
+  const setFormStatus = (text, kind = 'ok') => {
+    els.formStatus.textContent = text;
+    els.formStatus.dataset.kind = kind;
+  };
+  function renderAdded() {
+    els.list.hidden = !added.length;
+    els.list.innerHTML = `<span class="added-label">${t('追加済み', 'Added')}</span>${added
+      .map((key) => `<span class="added-chip">${escapeHtml(labelOf(key))}</span>`)
+      .join('')}`;
+  }
+
+  let saving = false;
+  async function save() {
+    if (saving) return;
     const label = els.label.value.trim();
-    if (!label) return;
-    const reading = els.reading.value.trim();
-    closeModal('modal-add-secondary');
+    if (!label) return els.label.focus();
+    saving = true;
+    try {
+      // Pressed Enter right after typing? Give the dictionary a moment to fill in.
+      await Promise.race([lookupNow(), new Promise((r) => setTimeout(r, 1500))]).catch(() => {});
+      if (els.label.value.trim() !== label) return; // the word changed while we waited
+      commit(label);
+    } finally {
+      saving = false;
+    }
+  }
 
+  function commit(label) {
+    const reading = els.reading.value.trim();
     // Same spelling, different reading → homograph key "label#reading".
     let key = label;
     const existing = store.doc.words[key];
     if (existing && (existing.reading === reading || !reading)) {
-      select(wordId(key), { center: true });
-      return toast(t(`「${label}」は既に登録されています`, `"${label}" already exists`));
+      setFormStatus(t(`「${label}」は既に登録されています`, `"${label}" already exists`), 'error');
+      return els.label.select();
     }
     if (existing) key = `${label}#${reading}`;
-    if (store.doc.words[key]) return select(wordId(key), { center: true });
+    if (store.doc.words[key]) {
+      setFormStatus(t(`「${label}」（${reading}）は既に登録されています`, `"${label}" (${reading}) already exists`), 'error');
+      return els.label.select();
+    }
 
-    // New kanji go beside an existing sibling (or the selected kanji, or the viewport centre).
-    const center = canvas.viewportCenter();
+    // Placement: "add here" point if given; else between its kanji. New kanji go beside
+    // an existing sibling (or the selected kanji, or the viewport centre).
+    const center = at || canvas.viewportCenter();
     const selectedKanji = store.graph.kanji.get(view.selectedId);
     const result = store.edit((doc) => {
       const siblings = extractKanji(labelOf(key)).filter((ch) => doc.kanji[ch]);
@@ -240,17 +295,38 @@ export function initAddWord(ctx) {
       );
       const anchor = siblings.length ? getPos(doc, kanjiId(siblings[0])) : selectedKanji ? [selectedKanji.x, selectedKanji.y] : null;
       for (const ch of res.createdKanji) {
-        const base = anchor ? { x: anchor[0] + 240, y: anchor[1] } : center;
+        const base = anchor && !at ? { x: anchor[0] + 240, y: anchor[1] } : center;
         const pos = findFreePosition(doc, base.x, base.y);
         setPos(doc, kanjiId(ch), pos.x, pos.y);
       }
-      const base = wordAnchor(doc, buildGraph(doc), wordId(key), center);
+      const base = at || wordAnchor(doc, buildGraph(doc), wordId(key), center);
       const pos = findFreePosition(doc, base.x, base.y, { excludeId: wordId(key), clearance: 95 });
       setPos(doc, wordId(key), pos.x, pos.y);
       return res;
     });
-    select(wordId(key), { center: true });
-    const extra = result.derivatives?.length ? t(`（派生語リンク ${result.derivatives.length}）`, ` (${result.derivatives.length} derivative links)`) : '';
-    toast(t(`熟語「${label}」を追加しました`, `Added "${label}"`) + extra);
+    added.push(key);
+    renderAdded();
+    const extra = result.derivatives?.length ? t(`・派生語リンク ${result.derivatives.length}`, ` · ${result.derivatives.length} derivative link(s)`) : '';
+    setFormStatus(t(`✓「${label}」を追加しました`, `✓ Added "${label}"`) + extra);
+    resetForm();
+    els.label.focus();
+  }
+
+  // Closing shows the last word added.
+  onModalClose('modal-add-secondary', () => {
+    const last = added.at(-1);
+    if (last && store.doc.words[last]) select(wordId(last), { center: true });
   });
+
+  return {
+    open(point = null) {
+      at = point;
+      added = [];
+      resetForm();
+      renderAdded();
+      setFormStatus('');
+      openModal('modal-add-secondary');
+      els.label.focus(); // synchronous: iOS only opens the keyboard during the tap
+    },
+  };
 }

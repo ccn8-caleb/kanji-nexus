@@ -12,7 +12,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="漢字Nexus">
+  <meta name="apple-mobile-web-app-title" content="漢字ネクサス">
   <script>document.documentElement.dataset.theme = localStorage.getItem('kanji_nexus_theme') === 'dark' ? 'dark' : 'light';</script>
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/drill.css">
@@ -23,11 +23,11 @@
   <header id="top-bar">
     <div class="brand-group">
       <img class="brand-badge" src="icon.svg" alt="">
-      <span class="brand-title" data-tip-ja="間隔反復フラッシュカード練習" data-tip-en="Spaced Repetition Flashcard Drill">復習ドリル</span>
+      <span class="brand-title" data-ja="漢字ネクサス" data-en="Kanji Nexus" data-tip-ja="漢字と熟語をつなぐ学習マップ" data-tip-en="Map, analyze and drill kanji">漢字ネクサス</span>
       <div id="nexus-hub-slot"></div>
     </div>
     <div class="header-actions">
-      <button type="button" id="btn-reset-srs" class="tb-btn" data-tip-ja="学習履歴をリセット" data-tip-en="Reset SRS Progress">↺</button>
+      <button type="button" id="btn-reset-srs" class="icon-btn" data-tip-ja="学習履歴をリセット" data-tip-en="Reset SRS Progress"><span data-icon="reset"></span></button>
       <div id="nexus-hub-controls"></div>
     </div>
   </header>
@@ -36,7 +36,7 @@
     <section class="status-grid" id="srs-status-grid"></section>
 
     <details class="controls-card" id="drill-controls">
-      <summary class="controls-summary"><span id="controls-summary-text"></span><span class="controls-chevron" aria-hidden="true">▾</span></summary>
+      <summary class="controls-summary"><span id="controls-summary-text"></span><span class="controls-chevron" data-icon="chevronDown"></span></summary>
       <div class="controls-body">
       <div class="controls-row">
         <div class="seg-group">

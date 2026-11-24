@@ -1,17 +1,18 @@
-// Map page entry: view state, toolbar, add-modals, link mode, keyboard, startup.
+// Map page entry: view state, header controls & menus, context menu, link mode,
+// keyboard shortcuts, phone controls, startup.
 
 import { GRAMMAR_TAGS, LINK_TYPES } from '../../core/constants.js';
-import { escapeHtml, splitReadings, fold, joinReadings, debounce } from '../../core/util.js';
-import { kanjiId } from '../../core/graph.js';
+import { escapeHtml, fold, joinReadings, debounce } from '../../core/util.js';
 import * as ops from '../../core/ops.js';
 import { t, tr, onPrefsChange, applyStaticText } from '../../core/prefs.js';
-import { toast, openModal, closeModal, bindImeField, isTyping, anyModalOpen, isCompact } from '../../core/ui.js';
+import { toast, openModal, closeModal, bindImeField, isTyping, anyModalOpen, isCompact, isTouch, toggleMenu, openMenu, closeMenu } from '../../core/ui.js';
+import { icon } from '../../core/icons.js';
 import { initPage, registerDataAction } from '../../core/hub.js';
-import { bindEnterFlow } from '../../core/ime.js';
 import { initAddWord } from './add-word.js';
+import { initAddKanji } from './add-kanji.js';
 import { createCanvas } from './canvas.js';
-import { renderInspector, initInspectorGestures } from './inspector.js';
-import { placeMissing, autoArrange, findFreePosition, getPos, setPos } from './layout.js';
+import { renderInspector, initInspectorGestures, deleteNode } from './inspector.js';
+import { placeMissing, autoArrange, getPos } from './layout.js';
 
 const VIEW_PREFS_KEY = 'kanji_nexus_map_view';
 const CAMERA_KEY = 'kanji_nexus_map_camera';
@@ -33,7 +34,7 @@ const view = {
   activeLinkType: 'antonym',
   tagFilter: 'all',
   search: '',
-  inspectorMode: 'summary', // phones: 'summary' (read-first) | 'edit'
+  inspectorMode: 'summary', // touch devices: 'summary' (read-first) | 'edit'
   sheetFull: false, // phones: bottom sheet expanded
 };
 const PERSISTED = ['revealAll', 'showReadings', 'autoLink', 'autoCreateKanji'];
@@ -57,6 +58,7 @@ const canvas = createCanvas({
     closeFabMenu();
     if (view.selectedId) select(null);
   },
+  onContextMenu: showContextMenu,
   // Remember where the map was so it reopens there.
   onCameraChange: debounce((cam) => {
     try {
@@ -66,6 +68,8 @@ const canvas = createCanvas({
 });
 const ctx = { store, view, canvas, select, startLink };
 initInspectorGestures(ctx);
+const addWord = initAddWord(ctx);
+const addKanji = initAddKanji(ctx);
 
 function renderFilterBar() {
   const pills = [{ id: 'all', ja: 'すべて', en: 'All' }, ...GRAMMAR_TAGS];
@@ -73,26 +77,13 @@ function renderFilterBar() {
     .map((p) => `<button type="button" class="filter-pill${view.tagFilter === p.id ? ' active' : ''}" data-filter-tag="${p.id}">${tr(p)}</button>`)
     .join('');
   const g = store.graph;
-  $('map-stats-summary').textContent = t(`${g.kanji.size} 漢字 · ${g.words.size} 熟語`, `${g.kanji.size} Kanji · ${g.words.size} Compounds`);
-}
-
-// Toggle buttons carry both labels so prefs.applyStaticText() can translate them.
-function setToggle(id, active, [ja, en], [jaOff, enOff] = [ja, en]) {
-  const el = $(id);
-  el.classList.toggle('active', active);
-  el.dataset.ja = active ? ja : jaOff;
-  el.dataset.en = active ? en : enOff;
+  $('map-stats-summary').textContent = t(`${g.kanji.size} 漢字 · ${g.words.size} 熟語`, `${g.kanji.size} kanji · ${g.words.size} words`);
 }
 
 function renderToolbar() {
-  setToggle('btn-toggle-reveal', view.revealAll, ['全体表示', 'Reveal All'], ['集中表示', 'Focus Mode']);
-  setToggle('btn-toggle-readings', view.showReadings, ['読み表示', 'Readings On'], ['読み非表示', 'Readings Off']);
-  setToggle('btn-toggle-autolink', view.autoLink, ['自動リンク', 'Auto-Link']);
-  setToggle('btn-toggle-autocreate', view.autoCreateKanji, ['未登録漢字自動作成', 'Auto-Create Kanji']);
-  $('btn-toggle-link-mode').classList.toggle('link-active', view.linkMode);
-  $('btn-undo').disabled = !store.canUndo;
+  for (const id of ['btn-undo', 'm-btn-undo']) $(id).disabled = !store.canUndo;
   $('btn-redo').disabled = !store.canRedo;
-  $('m-btn-undo').disabled = !store.canUndo;
+  $('btn-view-menu').classList.toggle('active', view.linkMode);
   applyStaticText($('top-bar'));
 }
 
@@ -103,12 +94,13 @@ function renderAll({ inspector = true } = {}) {
   if (inspector) renderInspector(ctx);
 }
 
-function select(id, { center = false } = {}) {
+function select(id, { center = false, edit = false } = {}) {
   const next = id && store.graph.node(id) ? id : null;
   if (next !== view.selectedId) {
     view.inspectorMode = 'summary';
     view.sheetFull = false;
   }
+  if (edit) view.inspectorMode = 'edit';
   view.selectedId = next;
   renderAll();
   if (center && view.selectedId) {
@@ -175,11 +167,11 @@ function renderLinkModeBar() {
     .join('');
 }
 
-// From the phone summary's 🔗 button: start link mode with this word as the source.
+// Link mode starting from a given word (summary "Link" button, context menu).
 function startLink(wid) {
   setLinkMode(true);
   view.linkSourceId = wid;
-  view.selectedId = null; // close the sheet so the map is visible
+  view.selectedId = null; // close the panel so the map is visible
   renderLinkModeBar();
   renderAll();
 }
@@ -193,52 +185,83 @@ function setLinkMode(on) {
 }
 
 // ---------------------------------------------------------------------------
-// Add kanji / add word modals
+// Commands shared by the header menus, the phone tools sheet and the context menu
 // ---------------------------------------------------------------------------
-$('btn-open-add-primary').addEventListener('click', () => {
-  ['new-primary-label', 'new-primary-onyomi', 'new-primary-kunyomi', 'new-primary-notes'].forEach((id) => ($(id).value = ''));
-  openModal('modal-add-primary');
-  $('new-primary-label').focus(); // synchronous: iOS only opens the keyboard during the tap
-});
-
-$('btn-confirm-add-primary').addEventListener('click', () => {
-  const ch = $('new-primary-label').value.trim();
-  if (!ch) return;
-  closeModal('modal-add-primary');
-  if (store.doc.kanji[ch]) {
-    select(kanjiId(ch), { center: true });
-    return toast(t(`「${ch}」は既に登録されています`, `"${ch}" already exists`));
-  }
-  const center = canvas.viewportCenter();
-  store.edit((doc) => {
-    ops.addKanji(doc, ch, {
-      on: splitReadings($('new-primary-onyomi').value),
-      kun: splitReadings($('new-primary-kunyomi').value),
-      notes: $('new-primary-notes').value.trim(),
-    });
-    const pos = findFreePosition(doc, center.x, center.y);
-    setPos(doc, kanjiId(ch), pos.x, pos.y);
-  });
-  select(kanjiId(ch), { center: true });
-  toast(t(`親漢字「${ch}」を追加しました`, `Added kanji "${ch}"`));
-});
-
-bindEnterFlow([$('new-primary-label'), $('new-primary-onyomi'), $('new-primary-kunyomi'), $('new-primary-notes')], () => $('btn-confirm-add-primary').click());
-initAddWord(ctx);
-
-// ---------------------------------------------------------------------------
-// Toolbar
-// ---------------------------------------------------------------------------
-const toggle = (key) => () => {
+const toggle = (key) => {
   view[key] = !view[key];
   saveViewPrefs();
   renderAll();
 };
-$('btn-toggle-reveal').addEventListener('click', toggle('revealAll'));
-$('btn-toggle-readings').addEventListener('click', toggle('showReadings'));
-$('btn-toggle-autolink').addEventListener('click', toggle('autoLink'));
-$('btn-toggle-autocreate').addEventListener('click', toggle('autoCreateKanji'));
-$('btn-toggle-link-mode').addEventListener('click', () => setLinkMode(!view.linkMode));
+const undo = () => store.undo() && toast(t('操作を元に戻しました', 'Undid last action'));
+const redo = () => store.redo() && toast(t('操作をやり直しました', 'Redid action'));
+function arrange() {
+  store.edit((doc) => autoArrange(doc), 'layout');
+  canvas.fit();
+  toast(t('クラスター別に自動整列しました', 'Auto-arranged clusters'), { action: { label: t('元に戻す', 'Undo'), run: undo } });
+}
+
+const VIEW_TOGGLES = [
+  ['revealAll', 'reveal', '全体表示（すべての熟語）', 'Reveal all words'],
+  ['showReadings', 'readings', '読みを表示', 'Show readings'],
+  ['autoLink', 'autoLink', '派生語を自動リンク', 'Auto-link derivatives'],
+  ['autoCreateKanji', 'autoCreate', '未登録の漢字を自動作成', 'Auto-create missing kanji'],
+];
+
+function viewMenuItems() {
+  return [
+    { heading: t('表示', 'View') },
+    ...VIEW_TOGGLES.slice(0, 2).map(([key, , ja, en]) => ({ label: t(ja, en), checked: view[key], run: () => toggle(key) })),
+    { heading: t('追加時', 'When adding') },
+    ...VIEW_TOGGLES.slice(2).map(([key, , ja, en]) => ({ label: t(ja, en), checked: view[key], run: () => toggle(key) })),
+    { separator: true },
+    { label: view.linkMode ? t('リンク接続モードを終了', 'Exit link mode') : t('リンク接続モード', 'Link mode'), icon: 'link', run: () => setLinkMode(!view.linkMode) },
+    { label: t('全体を表示', 'Show everything'), icon: 'fit', run: () => canvas.fit() },
+    { label: t('自動整列', 'Auto-arrange'), icon: 'arrange', run: arrange },
+  ];
+}
+
+function addMenuItems(at = null) {
+  return [
+    { label: t('熟語・語彙', 'Word'), icon: 'add', hint: 'N', run: () => addWord.open(at) },
+    { label: t('親漢字', 'Kanji'), icon: 'add', hint: 'K', run: () => addKanji.open(at) },
+  ];
+}
+
+// Right-click (mouse) or long-press (touch) on a node or on empty map.
+function showContextMenu(nodeId, clientX, clientY, world) {
+  const node = nodeId && store.graph.node(nodeId);
+  let items;
+  if (node) {
+    items = [
+      { heading: escapeHtml(node.label) },
+      { label: t('詳細を表示', 'Open'), icon: 'search', run: () => select(node.id, { center: isCompact() }) },
+      { label: t('編集', 'Edit'), icon: 'edit', run: () => select(node.id, { edit: true }) },
+      ...(node.kind === 'word' ? [{ label: t('ここからリンク接続', 'Link from here'), icon: 'link', run: () => startLink(node.id) }] : []),
+      { label: t('中央に表示', 'Center'), icon: 'center', run: () => canvas.focusOn(node.x, node.y) },
+      { separator: true },
+      { label: t('削除', 'Delete'), icon: 'delete', danger: true, run: () => deleteNode(ctx, node) },
+    ];
+  } else {
+    items = [
+      { label: t('ここに熟語を追加', 'Add word here'), icon: 'add', hint: 'N', run: () => addWord.open(world) },
+      { label: t('ここに漢字を追加', 'Add kanji here'), icon: 'add', hint: 'K', run: () => addKanji.open(world) },
+      { separator: true },
+      { label: t('全体を表示', 'Show everything'), icon: 'fit', run: () => canvas.fit() },
+      { label: t('自動整列', 'Auto-arrange'), icon: 'arrange', run: arrange },
+    ];
+  }
+  openMenu({ x: clientX, y: clientY, items });
+}
+
+// ---------------------------------------------------------------------------
+// Header (desktop & tablet)
+// ---------------------------------------------------------------------------
+$('btn-add-menu').addEventListener('click', (e) => toggleMenu({ anchor: e.currentTarget, items: addMenuItems() }));
+$('btn-view-menu').addEventListener('click', (e) => toggleMenu({ anchor: e.currentTarget, items: viewMenuItems(), align: 'end' }));
+$('btn-undo').addEventListener('click', undo);
+$('m-btn-undo').addEventListener('click', undo);
+$('btn-redo').addEventListener('click', redo);
+
 $('btn-exit-link-mode').addEventListener('click', () => setLinkMode(false));
 $('link-mode-types').addEventListener('click', (e) => {
   const type = e.target.closest('[data-lm-type]')?.dataset.lmType;
@@ -247,17 +270,6 @@ $('link-mode-types').addEventListener('click', (e) => {
     renderLinkModeBar();
   }
 });
-
-$('btn-auto-arrange').addEventListener('click', () => {
-  store.edit((doc) => autoArrange(doc), 'layout');
-  canvas.fit();
-  toast(t('クラスター別に自動整列しました', 'Auto-arranged clusters'));
-});
-
-const undo = () => store.undo() && toast(t('操作を元に戻しました', 'Undid last action'));
-$('btn-undo').addEventListener('click', undo);
-$('m-btn-undo').addEventListener('click', undo);
-$('btn-redo').addEventListener('click', () => store.redo() && toast(t('操作をやり直しました', 'Redid action')));
 
 $('tag-filter-pills').addEventListener('click', (e) => {
   const tag = e.target.closest('[data-filter-tag]')?.dataset.filterTag;
@@ -278,6 +290,7 @@ $('zoom-level-text').addEventListener('click', () => canvas.resetZoom());
 $('btn-zoom-fit').addEventListener('click', () => canvas.fit());
 $('btn-close-inspector').addEventListener('click', () => select(null));
 
+// Keyboard: Ctrl/⌘+Z / Y undo-redo, "/" search, N add word, K add kanji, Esc back out.
 document.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if ((e.ctrlKey || e.metaKey) && !isTyping()) {
@@ -288,7 +301,20 @@ document.addEventListener('keydown', (e) => {
       e.preventDefault();
       store.redo();
     }
-  } else if (e.key === 'Escape' && !anyModalOpen()) {
+    return;
+  }
+  if (isTyping() || anyModalOpen() || e.altKey || e.ctrlKey || e.metaKey) return;
+  if (e.key === '/' && !isCompact()) {
+    e.preventDefault();
+    $('map-search-input').focus();
+  } else if (k === 'n') {
+    e.preventDefault();
+    addWord.open();
+  } else if (k === 'k') {
+    e.preventDefault();
+    addKanji.open();
+  } else if (e.key === 'Escape') {
+    closeMenu();
     if (view.linkMode) setLinkMode(false);
     else if (view.selectedId) select(null);
   }
@@ -310,24 +336,23 @@ $('fab-menu').addEventListener('click', (e) => {
   const which = e.target.closest('[data-fab]')?.dataset.fab;
   if (!which) return;
   closeFabMenu();
-  $(which === 'word' ? 'btn-open-add-secondary' : 'btn-open-add-primary').click();
+  (which === 'word' ? addWord : addKanji).open();
 });
 
-const TOOL_TOGGLES = [
-  ['revealAll', '全体表示（すべての熟語を表示）', 'Reveal all words'],
-  ['showReadings', '読みを表示', 'Show readings'],
-  ['autoLink', '派生語を自動リンク', 'Auto-link derivatives'],
-  ['autoCreateKanji', '未登録の漢字を自動作成', 'Auto-create missing kanji'],
-];
+// Same commands as the desktop View menu, as a bottom sheet.
 function renderToolsSheet() {
-  const toggles = TOOL_TOGGLES.map(
-    ([key, ja, en]) => `<button type="button" class="menu-row${view[key] ? ' on' : ''}" data-tool-toggle="${key}"><span>${t(ja, en)}</span><span class="switch"></span></button>`
+  const toggles = VIEW_TOGGLES.map(
+    ([key, ic, ja, en]) =>
+      `<button type="button" class="menu-row${view[key] ? ' on' : ''}" data-tool-toggle="${key}"><span class="row-label">${icon(ic)}${t(ja, en)}</span><span class="switch"></span></button>`
   ).join('');
-  $('map-tools-list').innerHTML = `${toggles}
-    <button type="button" class="menu-row" data-tool="link"><span>🔗 ${t('リンク接続モード', 'Link mode')}</span></button>
-    <button type="button" class="menu-row" data-tool="fit"><span>⤢ ${t('全体を表示', 'Show everything')}</span></button>
-    <button type="button" class="menu-row" data-tool="arrange"><span>✨ ${t('自動整列', 'Auto-arrange')}</span></button>
-    <button type="button" class="menu-row" data-tool="redo" ${store.canRedo ? '' : 'disabled'}><span>↪ ${t('やり直す', 'Redo')}</span></button>`;
+  const action = (id, ic, ja, en, disabled = false) =>
+    `<button type="button" class="menu-row" data-tool="${id}" ${disabled ? 'disabled' : ''}><span class="row-label">${icon(ic)}${t(ja, en)}</span></button>`;
+  $('map-tools-list').innerHTML =
+    toggles +
+    action('link', 'link', 'リンク接続モード', 'Link mode') +
+    action('fit', 'fit', '全体を表示', 'Show everything') +
+    action('arrange', 'arrange', '自動整列', 'Auto-arrange') +
+    action('redo', 'redo', 'やり直す', 'Redo', !store.canRedo);
 }
 $('m-btn-tools').addEventListener('click', () => {
   renderToolsSheet();
@@ -336,7 +361,7 @@ $('m-btn-tools').addEventListener('click', () => {
 $('map-tools-list').addEventListener('click', (e) => {
   const key = e.target.closest('[data-tool-toggle]')?.dataset.toolToggle;
   if (key) {
-    toggle(key)();
+    toggle(key);
     return renderToolsSheet();
   }
   const tool = e.target.closest('[data-tool]')?.dataset.tool;
@@ -344,8 +369,8 @@ $('map-tools-list').addEventListener('click', (e) => {
   closeModal('modal-map-tools');
   if (tool === 'link') setLinkMode(true);
   else if (tool === 'fit') canvas.fit();
-  else if (tool === 'arrange') $('btn-auto-arrange').click();
-  else if (tool === 'redo') store.redo();
+  else if (tool === 'arrange') arrange();
+  else if (tool === 'redo') redo();
 });
 
 function renderSearchResults() {
@@ -396,8 +421,9 @@ $('m-search-results').addEventListener('click', (e) => {
 registerDataAction({
   id: 'rescan',
   section: 'tools',
-  ja: '🔄 未登録漢字・派生語リンクを再スキャン',
-  en: '🔄 Rescan missing kanji & derivative links',
+  icon: 'sync',
+  ja: '未登録漢字・派生語リンクを再スキャン',
+  en: 'Rescan missing kanji & derivative links',
   run({ closePanel }) {
     const res = store.edit((doc) => ops.rescanAll(doc, { createKanji: view.autoCreateKanji }));
     closePanel();
@@ -419,7 +445,7 @@ renderAll();
 renderLinkModeBar();
 
 // Where the map opens: a deep link wins, then the last position on this device; on a
-// first phone visit, the biggest cluster at a zoom where nodes are easy to tap.
+// first visit on a touch device, the biggest cluster at a zoom where nodes are easy to tap.
 function savedCamera() {
   try {
     const cam = JSON.parse(localStorage.getItem(CAMERA_KEY) || 'null');
@@ -443,8 +469,8 @@ if (focusId) {
   select(focusId, { center: true });
 } else if (savedCamera()) {
   canvas.restoreView(savedCamera());
-} else if (isCompact()) {
-  readableStart();
+} else if (isTouch()) {
+  readableStart(); // phones and tablets: tappable nodes beat seeing everything
 } else {
   canvas.fit({ animate: false });
 }

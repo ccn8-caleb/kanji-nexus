@@ -6,7 +6,7 @@
 //   Auto-sync   while a token is valid: a few seconds after each edit, and when the
 //               tab becomes visible again (to pick up changes from other devices)
 //   Expired     tokens last ~1h and can't renew without a click; the Data button
-//               shows "☁!" and "Sync now" signs in again
+//               shows an alert badge and "Sync now" signs in again
 //   Conflicts   decided by content (see logic.js); when both sides changed the user
 //               chooses which copy wins. Pulling is undoable with Ctrl+Z on the map.
 //
@@ -41,8 +41,9 @@ export function install(ctx) {
     registerDataAction({
       id: 'gdrive-https',
       section: 'sync',
-      ja: '☁ Google Drive同期（HTTPSで開く）',
-      en: '☁ Google Drive sync (open over HTTPS)',
+      icon: 'cloud',
+      ja: 'Google Drive同期（HTTPSで開く）',
+      en: 'Google Drive sync (open over HTTPS)',
       run: () => (location.href = location.href.replace(/^http:/, 'https:')),
     });
     return;
@@ -72,11 +73,11 @@ export function install(ctx) {
 
   const status = {
     off: () => setSyncStatus(null),
-    ok: () => setSyncStatus({ badge: '☁✓', tone: 'ok', detail: t(`Google Driveと同期済み（${time(state.lastSync)}）`, `Synced with Google Drive at ${time(state.lastSync)}`) }),
-    busy: () => setSyncStatus({ badge: '☁…', tone: 'busy', detail: t('同期中…', 'Syncing…') }),
-    signIn: () => setSyncStatus({ badge: '☁!', tone: 'warn', detail: t('ログインの有効期限が切れました。「今すぐ同期」で再開します。', 'Google sign-in expired. Press "Sync now" to continue syncing.') }),
-    conflict: () => setSyncStatus({ badge: '☁!', tone: 'warn', detail: t('同期が保留中です：どちらのデータを残すか選んでください（「今すぐ同期」）。', 'Sync paused: choose which copy to keep ("Sync now").') }),
-    error: (err) => setSyncStatus({ badge: '☁×', tone: 'error', detail: navigator.onLine === false ? t('オフラインです。接続後に再同期します。', 'Offline — will sync when you are back online.') : t(`同期エラー: ${err.message}`, `Sync error: ${err.message}`) }),
+    ok: () => setSyncStatus({ tone: 'ok', detail: t(`Google Driveと同期済み（${time(state.lastSync)}）`, `Synced with Google Drive at ${time(state.lastSync)}`) }),
+    busy: () => setSyncStatus({ tone: 'busy', detail: t('同期中…', 'Syncing…') }),
+    signIn: () => setSyncStatus({ tone: 'warn', detail: t('ログインの有効期限が切れました。「今すぐ同期」で再開します。', 'Google sign-in expired. Press "Sync now" to continue syncing.') }),
+    conflict: () => setSyncStatus({ tone: 'warn', detail: t('同期が保留中です：どちらのデータを残すか選んでください（「今すぐ同期」）。', 'Sync paused: choose which copy to keep ("Sync now").') }),
+    error: (err) => setSyncStatus({ tone: 'error', detail: navigator.onLine === false ? t('オフラインです。接続後に再同期します。', 'Offline — will sync when you are back online.') : t(`同期エラー: ${err.message}`, `Sync error: ${err.message}`) }),
   };
 
   for (const k of Object.keys(status)) status[k] = show(status[k]);
@@ -206,8 +207,9 @@ export function install(ctx) {
   registerDataAction({
     id: 'gdrive-connect',
     section: 'sync',
-    ja: '☁ Google Driveと同期',
-    en: '☁ Sync with Google Drive',
+    icon: 'cloud',
+    ja: 'Google Driveと同期',
+    en: 'Sync with Google Drive',
     hidden: () => state.enabled,
     primary: () => true,
     run: async () => {
@@ -220,14 +222,16 @@ export function install(ctx) {
   registerDataAction({
     id: 'gdrive-sync',
     section: 'sync',
-    ja: '☁ 今すぐ同期',
-    en: '☁ Sync now',
+    icon: 'sync',
+    ja: '今すぐ同期',
+    en: 'Sync now',
     hidden: () => !state.enabled,
     run: () => sync({ interactive: true }),
   });
   registerDataAction({
     id: 'gdrive-disconnect',
     section: 'sync',
+    icon: 'cloudOff',
     ja: '接続を解除',
     en: 'Disconnect',
     hidden: () => !state.enabled,
