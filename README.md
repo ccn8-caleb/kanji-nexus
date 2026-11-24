@@ -1,174 +1,128 @@
 # Kanji Nexus (漢字ネットワーク)
 
-An in-browser, zero-backend suite for mapping, analyzing, and drilling Japanese **kanji (漢字)** and **compounds (熟語・語彙)**. Built with Gemini, Kanji Nexus turns a personal vocabulary notebook into a connected graph—helping you spot shared character patterns, organize word relationships, and reinforce active recall.
+An in-browser, zero-backend suite for mapping, analyzing, and drilling Japanese **kanji (漢字)** and **compounds (熟語・語彙)**. It turns a personal vocabulary notebook into a connected graph, which helps you spot shared character patterns, organize word relationships, and reinforce active recall.
+
+Everything runs client-side from static files. There are no accounts, no server, and no build step.
+
+| Page | Purpose |
+| :--- | :--- |
+| **Map** (`index.html`) | Interactive canvas of kanji and their compounds. It uses progressive disclosure, typed links between words, 3-tier auto-arrange, and an inspector with undo/redo. |
+| **Stats & Index** (`stats.html`) | Top kanji hubs, tag and link breakdowns, and a searchable gojūon (あ〜わ) and cluster index. Any entry jumps to the map. |
+| **SRS Drill** (`drill.html`) | SM-2 flashcards, Kanji → Reading or Reading → Kanji (homophones are masked as `〇〇`), with tag filters and map context. |
 
 ---
 
-## Suite Architecture
+## Running it
 
-All application files live inside the `site/` directory and share a single hotbar and data-bridge script (`nexus-hub.js`). Every mini-app reads and updates the same underlying JSON dataset without requiring backend databases or build steps.
-
-| File | Module | Purpose |
-| :--- | :--- | :--- |
-| **`site/kanji_nexus.html`** | **Network Map (`漢字ネットワーク`)** | Interactive canvas for mapping primary kanji and multi-parent compounds with progressive disclosure, auto-linking, and cluster auto-layout. |
-| **`site/kanji_stats.html`** | **Stats & Index (`統計・索引`)** | Analytics dashboard ranking high-connection kanji hubs, grammar/link distributions, and a searchable Gojūon (`あ〜わ`) & cluster index. |
-| **`site/kanji_drill.html`** | **SRS Drill (`復習ドリル`)** | Spaced-repetition (SM-2) flashcard trainer supporting `Kanji → Reading` and `Reading → Kanji` recall with tag filters and map context. |
-| **`site/nexus-hub.js`** | **Shared Hotbar & Bridge** | Injects the navigation hotbar across all pages and synchronizes data, language (`日本語 / EN`), theme, and deep-link focus targets. |
-
----
-
-## Key Features
-
-### 1. Progressive-Disclosure Network Map (`site/kanji_nexus.html`)
-* **Focus Mode (`集中表示`) vs. Reveal All (`全体表示`):** Keeps large graphs readable by showing only top-level kanji until a node is selected, revealing its connected compounds and related links on demand.
-* **Automatic Bidirectional Kanji Linking (`自動リンク`):** Automatically extracts constituent kanji (including iteration marks like `々`), attaches compounds to all matching primary kanji, and optionally scaffolds unregistered primary kanji (`未登録漢字自動作成`) beside existing siblings.
-* **3-Tier Cluster Auto-Arrange (`自動整列`):** Organizes disconnected graph components into multi-kanji hubs at the top, 2-kanji compound pairs in the middle, and single-kanji islands at the bottom.
-* **Typed Lateral Compound Links:** Connects compounds directly via `対義語` (Antonym), `類義語` (Synonym), `派生語` (Derivative), `類形語` (Lookalike), and `関連語` (Related), with automatic morphological derivative detection.
-* **Grammar Tags & Reading Hints:** Tag vocabulary with `する動`, `自動`, `他動`, `な形`, `い形`, `副`, or `かな表記`, filter the map by tag, and infer `音読み` / `訓読み` suggestions from attached compounds.
-* **Study & Editing Utilities:** Includes 50-step Undo/Redo (`Ctrl+Z` / `Ctrl+Y`), one-click lookups in Japanese dictionaries (漢字ペディア, 漢字辞典オンライン, Weblio, コトバンク, Jisho), light/dark themes, and bilingual `日本語 / EN` hover and mobile long-press tooltips.
-
-### 2. Statistics & Gojūon Index (`site/kanji_stats.html`)
-* **Hub Rankings:** Visualizes which primary kanji connect to the highest number of compounds in your dataset.
-* **Tag & Relationship Breakdown:** Summarizes vocabulary distribution across grammar tags and lateral link types.
-* **Searchable Directory:** Filter entries by view (`All`, `Primary Kanji`, `Compounds`, `Clusters`), kana row (`あ`–`わ`), grammar tag, or search query, and jump directly to any node on the map (`Map ↗`).
-
-### 3. Spaced-Repetition Flashcard Drill (`site/kanji_drill.html`)
-* **Automatic Deck Sync:** Pulls newly added kanji and compounds from your map automatically without altering your core JSON backup.
-* **Bidirectional Active Recall:** Switch between **Kanji → Reading** and **Reading → Kanji** (with character masks `〇〇` and grammar/note hints for distinguishing homophones).
-* **SM-2 Scheduling:** Tracks review intervals locally (`Again`, `Hard`, `Good`, `Easy`) while displaying constituent kanji, linked antonyms/synonyms, and dictionary links on card flip.
-
----
-
-## Getting Started
-
-### Option 1: Host with Docker & Nginx (`compose.yml`)
-The repository includes a `compose.yml` configured to spin up an Nginx container serving the `site/` directory:
+Pages use ES modules and load the starter sample with `fetch`, so they must be served over HTTP. Opening them from `file://` does not work.
 
 ```bash
-docker compose up -d
+docker compose -f docker-compose.yml up -d    # nginx on http://localhost:8888
+# or
+python3 -m http.server -d site 8000
 ```
 
-Once running, open `http://localhost:<port>/kanji_nexus.html` in your browser (check `compose.yml` for the mapped host port). Serving over HTTP ensures all pages share a single origin for real-time multi-tab `localStorage` updates.
-
-### Option 2: Use Directly on Desktop or Mobile (No Server Required)
-
-The `site/` folder is completely self-contained and works directly from local storage on a computer or smartphone without running a web server:
-
-1. Copy the `site/` directory to your computer or phone.
-2. Open `site/kanji_nexus.html` directly in any modern browser (`file://`).
-3. Use the top hotbar to switch between **Map**, **Stats & Index**, and **SRS Drill**—your data carries over automatically between pages.
+The `master` branch deploys `site/` to GitHub Pages (`.github/workflows/static.yml`).
 
 ---
 
-## Portable JSON Data Schema
+## Your data
 
-All map data is stored under `primaryNodes` and can be exported or imported anytime via **JSON入出力** for backups, sharing, or external scripts:
+* **First visit:** the app loads the **starter sample** from `site/data/`. The sample shows every link type, grammar tag, and layout tier.
+* **Editing:** every change is saved to `localStorage` in that browser right away. Undo/redo covers adding, deleting, renaming, linking, dragging, wiping, and resetting.
+* **The 💾 Data button** is in every page header:
+  * **Download / load `.json`:** backup files. Old exports in the `primaryNodes` format are migrated automatically.
+  * **Transfer link:** your whole dataset is gzipped into a URL `#fragment`. Open the link on another device to import it. The fragment is never sent to any server.
+  * **Share file:** sends a backup to the phone's share sheet (AirDrop, Files, Drive, …) where the browser supports it.
+  * **Reset to sample** or **Erase all & start empty**. Both can be undone in the current tab.
+  * **Edit raw JSON** directly.
 
-```json
-{
-  "primaryNodes": [
-    {
-      "id": "p-kou",
-      "label": "構",
-      "onyomi": "コウ",
-      "kunyomi": "かま.える",
-      "color": "#3b82f6",
-      "x": -240,
-      "y": -120,
-      "notes": "",
-      "connections": [
-        {
-          "id": "s-kouzou",
-          "label": "構造",
-          "reading": "こうぞう",
-          "color": "#10b981",
-          "x": -80,
-          "y": -120,
-          "linksTo": [{ "targetId": "s-kousei", "type": "synonym" }],
-          "tags": [],
-          "notes": ""
-        }
-      ]
-    },
-    {
-      "id": "p-zou",
-      "label": "造",
-      "onyomi": "ゾウ",
-      "kunyomi": "つく.る",
-      "color": "#3b82f6",
-      "x": 80,
-      "y": -120,
-      "notes": "",
-      "connections": [
-        { "refId": "s-kouzou" }
-      ]
-    }
-  ]
-}
-
-```
+Browsers that still have data from the previous version (`kanji_nexus_data_v1`) are migrated on first load. SRS progress is carried over to the new node IDs, and the old key is left in place as a backup.
 
 ---
 
-## Adding New Mini-Apps & Cross-App Data Handoff
+## Data format
 
-Kanji Nexus is designed so you can add new tools that operate on your vocabulary JSON without editing `kanji_nexus.html`, `kanji_stats.html`, or `kanji_drill.html`.
+The starter sample lives in four files in `site/data/`. Backups and transfer links use the same shape, bundled into one object with `"schema": 2`. Each file has **one record per line**, sorted, so pruning by hand is a matter of deleting lines.
 
-### 1. Registering a New Mini-App
+```jsonc
+// kanji.json — keyed by character
+{ "構": {"on":["コウ"],"kun":["かま.える","かま.う"]} }
 
-1. **Create your HTML file inside `site/**` (for example, `site/kanji_table.html`) and load `nexus-hub.js` in `<head>`:
-```html
-<script src="nexus-hub.js"></script>
+// words.json — keyed by written form, sorted by reading
+{ "構造": {"reading":"こうぞう","notes":"物事の組み立て・仕組み"},
+  "構成": {"reading":"こうせい","tags":["suru"]} }
 
+// links.json — undirected [word, word, type]
+[ ["構成","構造","synonym"] ]
+
+// layout.json — map positions only
+{ "kanji": { "構": [80,-620] }, "words": { "構造": [80,-740] } }
 ```
 
+* **Parent kanji are never stored.** A word attaches to every registered kanji in its spelling, with `々` resolving to the preceding kanji (人々 → 人). Delete a kanji and its words stay; add one and matching words attach to it.
+* **Optional fields** (`notes`, `tags`, `color`) are omitted when empty or default.
+* **Homographs** use a `#` suffix on the key: `"生物#なまもの"` displays as 生物.
+* **Layout is disposable.** Entries missing from `layout.json` are placed automatically next to their kanji. Delete the file's contents (`{"kanji":{},"words":{}}`) and the map auto-arranges itself.
+* Tags: `suru`, `intransitive`, `transitive`, `na-adj`, `i-adj`, `adverb`, `kana`. Link types: `related`, `antonym`, `synonym`, `derivative`, `lookalike`. Both lists are defined in `site/js/core/constants.js`.
 
-2. **Provide a hotbar mount point (optional):**
-* Place `<div id="nexus-hub-slot"></div>` inside your header to render the hub navigation pills inline.
-* If omitted, `nexus-hub.js` automatically mounts a floating navigation dock at the bottom center of the viewport.
+### Maintenance tool (Go)
 
-
-3. **Register the app in `site/nexus-hub.js`:** Add one entry to the `NEXUS_APPS` array at the top of `nexus-hub.js`. Every existing page will display the new navigation tab automatically:
-```javascript
-const NEXUS_APPS = [
-  { id: 'map',   ja: 'マップ',     en: 'Map',           file: 'kanji_nexus.html', icon: '🕸️' },
-  { id: 'stats', ja: '統計・索引', en: 'Stats & Index', file: 'kanji_stats.html', icon: '📊' },
-  { id: 'drill', ja: '復習ドリル', en: 'SRS Drill',     file: 'kanji_drill.html', icon: '🎴' },
-  { id: 'table', ja: '一覧編集',   en: 'Batch Editor',  file: 'kanji_table.html', icon: '📝' }
-];
-
+```bash
+go run ./tools/kanjinexus lint                    # unknown tags/types, dangling links, missing kanji, readings, formatting
+go run ./tools/kanjinexus fmt [-check]            # rewrite site/data in canonical order and layout
+go run ./tools/kanjinexus prune                   # drop dangling links and stale layout entries
+go run ./tools/kanjinexus import backup.json      # replace site/data with an app backup
 ```
 
+To update the starter sample from the app: edit it in the browser, then **💾 Data → Download .json**. Run `import` on the file, then `lint`, and commit. The Go formatter and the app's serializer produce identical bytes, so diffs only show real changes.
 
+---
 
-### 2. `NexusHub` JavaScript API
+## Code layout
 
-Any page that loads `nexus-hub.js` has access to the global `window.NexusHub` helper:
+```
+site/
+  index.html  stats.html  drill.html     markup only; each loads one module from js/pages/
+  css/base.css                           theme variables + shared components
+  css/{map,stats,drill}.css              page-specific styles
+  data/*.json                            starter sample
+  js/core/
+    constants.js   tags, link types, palette, storage keys, dictionary URLs
+    schema.js      normalize, canonical text format, v1 → v2 migration
+    graph.js       derived read-only index (parents, children, links, clusters)
+    ops.js         every data mutation (add/rename/delete/link/rescan, reading hints)
+    store.js       owns the doc: load, undo/redo, persist, import/reset/wipe, cross-tab sync
+    srs.js         SM-2 scheduling and progress storage
+    prefs.js       language + theme (shared across pages and tabs)
+    ui.js          toast, modals, bilingual tooltips, IME-safe inputs
+    hub.js         page shell: nav, header controls, Data panel, deep links
+  js/pages/        stats.js, drill.js, map/{main,canvas,inspector,layout}.js
+  js/sync/         transfer/sync plugins (see below)
+tools/kanjinexus/  Go CLI for site/data
+```
 
-| Method | Description |
+Some rules the code follows:
+
+* Pages read data from `store.graph` and change it only through `store.edit((doc) => ops.…)`. That one path gives undo, persistence, and re-rendering on every page and in other tabs.
+* Each page starts with `const { store, focusId } = await initPage('<id>')`.
+* Pages link to each other with `?focus=<node id>`. Node IDs are `k:<kanji>` and `w:<word key>`.
+
+### Adding a page
+
+1. Add `{ id, ja, en, tipJa, tipEn, file, icon }` to `APPS` in `js/core/hub.js`.
+2. Create the HTML with the standard header slots (`#nexus-hub-slot` for navigation, `#nexus-hub-controls` for Data/language/theme), and load `css/base.css` and your module.
+
+### Adding a sync or transfer method
+
+Plugins live in `js/sync/` and are listed in `js/sync/index.js`. A plugin exports `{ id, install(ctx) }`. It adds buttons to the Data panel with `ctx.registerDataAction(...)` and works only with whole snapshots (`ctx.store.exportText()` / `ctx.store.importData()`). Removing a plugin from the list removes the feature, with no other code changes.
+
+### Storage keys
+
+| Key | Contents |
 | --- | --- |
-| `NexusHub.getData()` | Returns the latest `{ primaryNodes: [...] }` object (reconciling `window.name` and `localStorage`). |
-| `NexusHub.saveData(data)` | Persists updated JSON to `localStorage` and updates the `window.name` bridge payload. |
-| `NexusHub.openInMap(nodeId)` | Navigates to `kanji_nexus.html` and smoothly centers/selects the target kanji or compound. |
-| `NexusHub.navigate(appId, opts)` | Switches to another registered mini-app (supports `{ focusId }` for deep-linking). |
-| `NexusHub.onBeforeNavigate(fn)` | Registers a callback to flush unsaved edits right before the user switches apps. |
-| `NexusHub.onDataChange(fn)` | Subscribes to live dataset updates across tabs or components. |
-| `NexusHub.getLang()` / `getTheme()` | Reads the shared interface language (`'ja'` / `'en'`) and theme (`'light'` / `'dark'`). |
-
-### 3. How Data Carries Over Between Apps
-
-Because Kanji Nexus runs both over HTTP (Nginx) and directly from local files (`file://` on desktop or mobile), `nexus-hub.js` uses a layered handoff strategy so state is never lost during navigation:
-
-1. **Shared `localStorage` Keys:**
-* `kanji_nexus_data_v1` stores the canonical `{ primaryNodes }` JSON graph.
-* `kanji_nexus_lang` and `kanji_nexus_theme` synchronize language and dark/light mode across all tools.
-* Mini-apps with tool-specific metadata (such as `kanji_nexus_srs_v1` in `kanji_drill.html`) store their own progress under separate keys so your core vocabulary JSON stays clean and portable.
-
-
-2. **`window.name` Transport Bridge (`__kanjiNexusBridge`):**
-* Some mobile and desktop browsers isolate `localStorage` per filename when HTML files are opened directly via `file://`.
-* Whenever you click a link in the hotbar or call `NexusHub.openInMap(id)`, `nexus-hub.js` runs any registered `onBeforeNavigate` hook, serializes the full JSON dataset, active theme/language, and target `focusId` into `window.name`, and navigates. On load, the destination page absorbs the `window.name` payload into its own `localStorage` immediately.
-
-
-3. **Deep-Link Focus Resolution:**
-* Jumping from `kanji_stats.html` or `kanji_drill.html` back to the Map passes the target node ID via `?focus=<id>`, `window.name`, and `kanji_nexus_focus_id`. `kanji_nexus.html` consumes the ID on startup, clears any active search/tag filters, reveals the node's connections, and centers the camera on it—then clears the transient focus marker so page reloads behave normally.
+| `kanji_nexus_data_v2` | the doc (kanji, words, links, layout) |
+| `kanji_nexus_srs_v1` | drill progress by node ID |
+| `kanji_nexus_lang` / `kanji_nexus_theme` | interface preferences |
+| `kanji_nexus_map_view` | map toggles (reveal all, readings, auto-link, auto-create) |
+| `kanji_nexus_data_v1` | previous-version data; read once for migration and never written |

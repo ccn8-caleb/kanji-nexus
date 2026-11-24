@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>統計・索引 | Kanji Nexus</title>
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <script>document.documentElement.dataset.theme = localStorage.getItem('kanji_nexus_theme') === 'dark' ? 'dark' : 'light';</script>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/stats.css">
+  <script type="module" src="js/pages/stats.js"></script>
+</head>
+<body>
+
+  <header id="top-bar">
+    <div class="brand-group">
+      <img class="brand-badge" src="icon.svg" alt="">
+      <span class="brand-title" data-tip-ja="統計ダッシュボードと五十音索引" data-tip-en="Statistics Dashboard & Kana Index">統計・索引</span>
+      <div id="nexus-hub-slot"></div>
+    </div>
+    <div id="nexus-hub-controls"></div>
+  </header>
+
+  <main class="container">
+    <section class="kpi-grid" id="kpi-grid"></section>
+
+    <section class="analytics-grid">
+      <div class="panel-card">
+        <div class="panel-header">
+          <h2 class="panel-title" data-ja="接続数の多い親漢字" data-en="Top Kanji Hubs by Compound Count">接続数の多い親漢字</h2>
+          <span class="panel-hint" data-ja="クリックでマップを表示" data-en="Click any kanji to locate in Map">クリックでマップを表示</span>
+        </div>
+        <div class="hub-bar-list" id="top-hubs-list"></div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-header">
+          <h2 class="panel-title" data-ja="品詞タグ・関連リンク内訳" data-en="Grammar Tags & Lateral Link Types">品詞タグ・関連リンク内訳</h2>
+          <span class="panel-hint" data-ja="クリックで索引を絞り込み" data-en="Click tag to filter index">クリックで索引を絞り込み</span>
+        </div>
+        <div class="dist-section">
+          <div class="kpi-label" data-ja="品詞・用法タグ" data-en="Grammar & Usage Tags">品詞・用法タグ</div>
+          <div class="dist-chips" id="grammar-dist-chips"></div>
+        </div>
+        <div class="dist-section">
+          <div class="kpi-label" data-ja="熟語間リンク種類" data-en="Compound Link Types">熟語間リンク種類</div>
+          <div class="dist-chips" id="linktype-dist-chips"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel-card">
+      <div class="index-controls">
+        <div class="controls-top-row">
+          <div class="mode-tabs" id="view-mode-tabs">
+            <button type="button" class="mode-tab" data-view-mode="all" data-ja="すべて" data-en="All">すべて</button>
+            <button type="button" class="mode-tab" data-view-mode="kanji" data-ja="親漢字" data-en="Primary Kanji">親漢字</button>
+            <button type="button" class="mode-tab" data-view-mode="words" data-ja="熟語・語彙" data-en="Compounds">熟語・語彙</button>
+            <button type="button" class="mode-tab" data-view-mode="clusters" data-ja="クラスター別" data-en="Clusters">クラスター別</button>
+          </div>
+          <div class="search-box">
+            <input type="search" id="index-search-input" data-placeholder-ja="漢字・読み・メモで検索..." data-placeholder-en="Search kanji, reading, or notes...">
+          </div>
+        </div>
+        <div class="kana-bar" id="kana-row-bar"></div>
+      </div>
+
+      <div class="index-results-header">
+        <span class="panel-hint" id="index-count-label"></span>
+        <button type="button" id="btn-clear-filters" class="tb-btn small" data-ja="フィルタ解除" data-en="Reset Filters" hidden>フィルタ解除</button>
+      </div>
+
+      <div id="index-content-area"></div>
+    </section>
+  </main>
+
+</body>
+</html>
