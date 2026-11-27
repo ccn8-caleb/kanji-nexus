@@ -27,6 +27,11 @@ deploy also carries a build id (commit hash), shown next to the version in the a
 ### Changed
 - Review records now carry the time of the last review (`at`); imported Anki progress
   counts as reviewed at import time.
+- **Tidy up keeps the map round and central.** Clusters are packed around the middle,
+  biggest first, each at the nearest free spot on an outward spiral, instead of in rows
+  (where hundreds of small clusters ended up far from everything). Small clusters sit
+  closer together, big ones get more room. On a 2,300-node Anki map the farthest node
+  is about half as far from the centre as before.
 
 ### Fixed
 - Anki import: a reading field that holds more than the reading (a conjugation table,

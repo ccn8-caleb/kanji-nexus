@@ -26,7 +26,7 @@ Everything runs client-side from static files. There are no accounts, no server,
 
 * **Header:** search (`/`), one **Add** button for words or kanji (also `N` / `K`), undo/redo, and a **View** menu for display toggles, link mode, fit and auto-arrange. Data, language and theme sit at the right, or under ⋯ on narrower screens.
 * **Context menu:** right-click (or long-press on touch) a node to open, edit, link from it, pin/unpin, center it or delete it, or empty space to add a word or kanji right there.
-* **Layout:** new words are placed between their kanji and nearby nodes shift aside to make room. **Tidy up** (View menu) re-lays every cluster organically and packs the clusters together; pinned nodes (anything you've dragged) never move. The engine is [d3-force](https://d3js.org/d3-force) (ISC), bundled as `site/js/vendor/d3-force.js`.
+* **Layout:** new words are placed between their kanji and nearby nodes shift aside to make room. **Tidy up** (View menu) re-lays every cluster organically and packs the clusters around the centre, biggest in the middle and small ones filling in around it; pinned nodes (anything you've dragged) never move. The engine is [d3-force](https://d3js.org/d3-force) (ISC), bundled as `site/js/vendor/d3-force.js`.
 * **Tablets** (wider than 700px with a touch screen) keep this layout but with touch-sized controls and the read-first inspector.
 
 ### On phones
