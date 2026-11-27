@@ -15,7 +15,8 @@ import { renderInspector, initInspectorGestures, deleteNode } from './inspector.
 import { placeMissing, tidy, tidyAsync, getPos, isPinned, setPinned, unpinAll } from './layout.js';
 
 const VIEW_PREFS_KEY = 'kanji_nexus_map_view';
-const CAMERA_KEY = 'kanji_nexus_map_camera';
+const CAMERA_KEY = 'kanji_nexus_map_camera'; // + ':<map id>' — each map remembers its view
+const cameraKey = () => `${CAMERA_KEY}:${store.currentMap?.id}`;
 const $ = (id) => document.getElementById(id);
 
 const { store, focusId } = await initPage('map');
@@ -62,7 +63,7 @@ const canvas = createCanvas({
   // Remember where the map was so it reopens there.
   onCameraChange: debounce((cam) => {
     try {
-      localStorage.setItem(CAMERA_KEY, JSON.stringify(cam));
+      localStorage.setItem(cameraKey(), JSON.stringify(cam));
     } catch (_) {}
   }, 400),
 });
@@ -110,6 +111,24 @@ function select(id, { center = false, edit = false } = {}) {
 }
 
 store.subscribe(({ reason }) => {
+  if (reason === 'switch') {
+    // Another map: fresh selection/link state, and that map's own remembered view.
+    view.selectedId = null;
+    view.linkMode = false;
+    view.linkSourceId = null;
+    renderLinkModeBar();
+    const hasLayout = Object.keys(store.doc.layout.kanji).length + Object.keys(store.doc.layout.words).length > 0;
+    if (!hasLayout && Object.keys(store.doc.kanji).length) {
+      tidy(store.doc); // a map that has never been laid out
+      store.commit('layout');
+    } else if (placeMissing(store.doc, { x: 0, y: 0 })) store.commit('layout');
+    renderAll();
+    const cam = savedCamera();
+    if (cam) canvas.restoreView(cam);
+    else if (isTouch()) readableStart();
+    else canvas.fit({ animate: false });
+    return;
+  }
   // Hand-edited or imported data may lack positions: place them (not an undo step).
   if (placeMissing(store.doc, canvas.viewportCenter())) {
     store.commit('layout');
@@ -483,7 +502,8 @@ renderLinkModeBar();
 // first visit on a touch device, the biggest cluster at a zoom where nodes are easy to tap.
 function savedCamera() {
   try {
-    const cam = JSON.parse(localStorage.getItem(CAMERA_KEY) || 'null');
+    // (falls back to the pre-maps single key for the migrated map)
+    const cam = JSON.parse(localStorage.getItem(cameraKey()) || (store.currentMap?.id === store.workspace.legacyMapId ? localStorage.getItem(CAMERA_KEY) : null) || 'null');
     return cam && [cam.cx, cam.cy, cam.scale].every(Number.isFinite) ? cam : null;
   } catch (_) {
     return null;

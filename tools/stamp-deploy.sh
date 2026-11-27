@@ -55,8 +55,9 @@ for f in *.html; do
 done
 
 # --- 3. Service worker -------------------------------------------------------------
-# dict/ (thousands of dictionary shards) is cached on demand, not precached.
-files=$(find . -type f ! -name sw.js ! -name CNAME ! -path './dict/*' | sed 's#^\./##' | sort |
+# dict/ (thousands of dictionary shards) and the Anki importer's SQLite reader
+# (~750 KB, rarely used) are cached on demand, not precached.
+files=$(find . -type f ! -name sw.js ! -name CNAME ! -path './dict/*' ! -path './js/import/vendor/*' | sed 's#^\./##' | sort |
   jq -R --arg v "$v" 'if test("\\.(js|css|webmanifest)$") then . + "?v=" + $v else . end' | jq -sc .)
 sed -i \
   -e "s#^const VERSION = 'dev';#const VERSION = '${v}';#" \

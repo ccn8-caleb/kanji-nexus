@@ -10,6 +10,12 @@ Everything runs client-side from static files. There are no accounts, no server,
 | **Stats & Index** (`stats.html`) | Top kanji hubs, tag and link breakdowns, and a searchable gojūon (あ〜わ) and cluster index. Any entry jumps to the map. |
 | **SRS Drill** (`drill.html`) | SM-2 flashcards, Kanji → Reading or Reading → Kanji (homophones are masked as `〇〇`), with tag filters and map context. |
 
+### Maps & Anki import
+
+* **Several maps.** Each map is a separate graph with its own layout and undo history: one for a textbook, one for a JLPT level, one imported from Anki. Switch from the map name next to the logo; **Manage maps…** renames, duplicates, downloads and deletes them.
+* **Import Anki decks** from the same menu: `.apkg` / `.colpkg` (Anki 2.0, 2.1 and the newer zstd format) or a “Notes in Plain Text” / CSV / TSV export. The importer guesses the word, reading and meaning fields (you can change them), previews the result, understands furigana syntax (`日本[にほん]`) and kanji decks (on/kun), and can bring your Anki review progress into the drill. Import into a new map or add to the open one. The file is read on your device and never uploaded. The SQLite reader ([sql.js](https://github.com/sql-js/sql.js), MIT) and Zstandard decoder ([fzstd](https://github.com/101arrowz/fzstd), MIT) are vendored in `site/js/import/vendor/` and load only when you import.
+* **Drill progress is shared by spelling**, so a word in several maps is one card. The drill can run on this map or on all maps.
+
 ### Desktop & tablet
 
 * **Header:** search (`/`), one **Add** button for words or kanji (also `N` / `K`), undo/redo, and a **View** menu for display toggles, link mode, fit and auto-arrange. Data, language and theme sit at the right, or under ⋯ on narrower screens.
@@ -69,24 +75,25 @@ The `master` branch deploys `site/` to GitHub Pages (`.github/workflows/static.y
 ## Your data
 
 * **First visit:** the app loads the **starter sample** from `site/data/`. The sample shows every link type, grammar tag, and layout tier.
-* **Editing:** every change is saved to `localStorage` in that browser right away. Undo/redo covers adding, deleting, renaming, linking, dragging, wiping, and resetting.
+* **Editing:** every change is saved in that browser right away (IndexedDB; one record per map). Undo/redo covers adding, deleting, renaming, linking, dragging, wiping, resetting and imports, per map.
 * **The 💾 Data button** is in every page header:
-  * **Download / load `.json`:** backup files. Old exports in the `primaryNodes` format are migrated automatically.
+  * **Download / load `.json`:** backups of this map or of all maps. Loading a single-map file asks whether to add it as a new map or replace the open one. Old exports in the `primaryNodes` format are migrated automatically.
+  * **Import Anki deck** (see above).
   * **Sync with Google Drive** (when configured, see below): keeps your data in a hidden app folder in your own Google Drive and syncs automatically between devices.
-  * **Transfer link:** your whole dataset is gzipped into a URL `#fragment`. Open the link on another device to import it. The fragment is never sent to any server.
+  * **Transfer link:** the open map is gzipped into a URL `#fragment`. Open the link on another device to import it. The fragment is never sent to any server.
   * **Share file:** sends a backup to the phone's share sheet (AirDrop, Files, Drive, …) where the browser supports it.
-  * **Reset to sample** or **Erase all & start empty**. Both can be undone in the current tab.
+  * **Reset to sample** or **Erase this map**. Both can be undone in the current tab.
   * **Edit raw JSON** directly.
 
-Browsers that still have data from the previous version (`kanji_nexus_data_v1`) are migrated on first load. SRS progress is carried over to the new node IDs, and the old key is left in place as a backup.
+Data from earlier versions moves into a map called **マイマップ** on first load: 0.6.x data from `localStorage` (`kanji_nexus_data_v2`), and older `kanji_nexus_data_v1` data, whose SRS progress is carried over to the new node IDs. The old keys are left in place as a backup.
 
 ### Google Drive sync
 
-* **Connecting:** one click, then Google's sign-in popup (consent the first time only). The data goes into Drive's hidden *app data* folder. It is invisible in the Drive UI, other apps can't read it, and the app can't see any of your other files (scope `drive.appdata`).
+* **Connecting:** one click, then Google's sign-in popup (consent the first time only). Every map goes into Drive's hidden *app data* folder as its own file (`kanji-nexus-map-<id>.json`), listed in `kanji-nexus-index.json`; only changed maps upload. New maps, renames and deletions carry across devices. A new device's untouched sample map isn't uploaded; it makes way for the maps already in Drive. (The single `kanji-nexus.json` from 0.6.0–0.6.2 is adopted as the file of your migrated map.) It is invisible in the Drive UI, other apps can't read it, and the app can't see any of your other files (scope `drive.appdata`).
 * **While connected:** edits sync a few seconds after you make them, and changes from other devices are picked up when you come back to the tab.
 * **Sign-in expiry:** Google sign-ins expire after about an hour and can't renew without a click. The 💾 button then shows **☁!** and **Sync now** signs in again.
-* **Conflicts are decided by content.** If only one side changed, it wins automatically. If both changed, or a new device's data differs from Drive's, you choose which copy to keep. Taking Drive's copy can be undone with Ctrl+Z on the map.
-* **Drill progress is not synced yet;** only the vocabulary is.
+* **Conflicts are decided by content, per map.** If only one side changed, it wins automatically. If both changed, or a new device's data differs from Drive's, you choose which copy to keep. Taking Drive's copy can be undone with Ctrl+Z on the map.
+* **Drill progress is not synced yet;** only the maps are.
 
 **One-time setup (site owner).** Google Drive sync stays hidden until a client ID is configured.
 
@@ -101,7 +108,7 @@ Google sign-in only works on HTTPS (or `localhost`). On a plain-`http://` page t
 
 ## Data format
 
-The starter sample lives in four files in `site/data/`. Backups and transfer links use the same shape, bundled into one object with `"schema": 2`. Each file has **one record per line**, sorted, so pruning by hand is a matter of deleting lines.
+The starter sample lives in four files in `site/data/`. Backups and transfer links use the same shape, bundled into one object with `"schema": 2` (plus the map's `"name"`). **Download all maps** wraps them as `{ "kind": "kanji-nexus-workspace", "version": 1, "maps": [ { "name", …bundle } ] }`. Each file has **one record per line**, sorted, so pruning by hand is a matter of deleting lines.
 
 ```jsonc
 // kanji.json — keyed by character
@@ -163,7 +170,9 @@ site/
     schema.js      normalize, canonical text format, v1 → v2 migration
     graph.js       derived read-only index (parents, children, links, clusters)
     ops.js         every data mutation (add/rename/delete/link/rescan, reading hints)
-    store.js       owns the doc: load, undo/redo, persist, import/reset/wipe, cross-tab sync
+    store.js       owns the maps and the open doc: load/migrate, undo/redo, persist, import/reset/wipe, cross-tab sync
+    db.js          IndexedDB wrapper (maps + workspace), in-memory fallback
+    maps-ui.js     map switcher, Manage maps dialog, downloads
     srs.js         SM-2 scheduling and progress storage
     prefs.js       language + theme (shared across pages and tabs)
     ui.js          toast/snackbar, modals & bottom sheets, popover/context menus, layout modes, tooltips
@@ -174,6 +183,9 @@ site/
     hub.js         page shell: nav, header controls, Data panel, deep links
   js/pages/        stats.js, drill.js, map/{main,canvas,inspector,layout}.js
   js/sync/         transfer/sync plugins (see below); config.js holds the Google client ID
+  js/import/       Anki import: anki-ui.js (dialog), anki-parse.js (pure: fields, furigana,
+                   scheduling → SRS), anki-worker.js (zip + zstd + SQLite off the main thread),
+                   vendor/ (sql.js, fzstd; cached on first use, not precached)
 tools/kanjinexus/  Go CLI for site/data
 tools/stamp-deploy.sh  deploy-time versioning (asset URLs, build stamp, service worker)
 ```
@@ -191,17 +203,20 @@ Some rules the code follows:
 
 ### Adding a sync or transfer method
 
-Plugins live in `js/sync/` and are listed in `js/sync/index.js`. A plugin exports `{ id, install(ctx) }`. It adds buttons to the Data panel with `ctx.registerDataAction(...)` and works only with whole snapshots (`ctx.store.exportText()` / `ctx.store.importData()`). Removing a plugin from the list removes the feature, with no other code changes.
+Plugins live in `js/sync/` and are listed in `js/sync/index.js`. A plugin exports `{ id, install(ctx) }`. It adds buttons to the Data panel with `ctx.registerDataAction(...)` and works only with whole snapshots: the open map (`ctx.store.exportText()` / `ctx.store.importData()`) or any map by id (`store.maps`, `store.getMapDoc(id)`, `store.putMapDoc(id, doc)`). Removing a plugin from the list removes the feature, with no other code changes.
 
 ### Storage keys
 
+Maps live in **IndexedDB** (database `kanji-nexus`): store `maps` (one record per map: id, name, doc, timestamps) and store `meta` (`workspace`: map order, the open map, deletions for sync). Everything else is in `localStorage`:
+
 | Key | Contents |
 | --- | --- |
-| `kanji_nexus_data_v2` | the doc (kanji, words, links, layout) |
-| `kanji_nexus_srs_v1` | drill progress by node ID |
+| `kanji_nexus_srs_v1` | drill progress by node ID (shared by all maps) |
+| `kanji_nexus_drill_scope` | drill on this map or all maps |
 | `kanji_nexus_lang` / `kanji_nexus_theme` | interface preferences |
 | `kanji_nexus_map_view` | map toggles (reveal all, readings, auto-link, auto-create) |
-| `kanji_nexus_map_camera` | last map position and zoom on this device |
-| `kanji_nexus_gdrive` | Drive sync state (enabled, file id, last synced version and content hash) |
+| `kanji_nexus_map_camera:<map id>` | last position and zoom of each map on this device |
+| `kanji_nexus_gdrive` | Drive sync state (enabled, index file, and per map: file id, last synced version and content hash) |
 | `kanji_nexus_gdrive_token` | current Google access token (expires in about an hour) |
-| `kanji_nexus_data_v1` | previous-version data; read once for migration and never written |
+| `kanji_nexus_data_v2` | 0.6.0–0.6.2 data; read once to migrate into a map and never written |
+| `kanji_nexus_data_v1` | older data; read once for migration and never written |

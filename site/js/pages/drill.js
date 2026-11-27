@@ -8,12 +8,16 @@ import { loadSrs, saveSrs, freshRecord, nextSm2 } from '../core/srs.js';
 import { t, tr, onPrefsChange, applyStaticText } from '../core/prefs.js';
 import { isTyping, isCompact, onCompactChange } from '../core/ui.js';
 import { initPage, navigate, openInMap } from '../core/hub.js';
+import { buildGraph } from '../core/graph.js';
 
 const $ = (id) => document.getElementById(id);
 const { store } = await initPage('drill');
 
+const SCOPE_KEY = 'kanji_nexus_drill_scope';
 const state = {
   srs: loadSrs(),
+  scope: localStorage.getItem(SCOPE_KEY) === 'all' ? 'all' : 'map', // this map | all maps
+  graphs: null, // [graph] for the current scope, current map first
   deckType: 'all', // 'all' | 'word' | 'kanji'
   direction: 'kanji-to-reading', // | 'reading-to-kanji'
   tagFilter: 'all',
@@ -28,13 +32,34 @@ const record = (id) => state.srs[id] || freshRecord();
 // ---------------------------------------------------------------------------
 // Deck
 // ---------------------------------------------------------------------------
-function allCards() {
-  const g = store.graph;
-  const cards = [];
-  for (const k of g.kanji.values()) {
-    cards.push({ ...k, reading: [joinReadings(k.on), joinReadings(k.kun)].filter(Boolean).join(' / '), tags: [] });
+// Graphs in scope: the current map, or every map (current first so its context wins).
+// Progress is keyed by node id ("w:構造"), so a word in several maps is one card.
+async function loadGraphs() {
+  if (state.scope === 'map') return [store.graph];
+  const graphs = [store.graph];
+  for (const m of store.maps) {
+    if (m.id === store.currentMap?.id) continue;
+    const d = await store.getMapDoc(m.id);
+    if (d) graphs.push(buildGraph(d));
   }
-  for (const w of g.words.values()) cards.push(w);
+  return graphs;
+}
+
+function allCards() {
+  const seen = new Set();
+  const cards = [];
+  for (const g of state.graphs || [store.graph]) {
+    for (const k of g.kanji.values()) {
+      if (seen.has(k.id)) continue;
+      seen.add(k.id);
+      cards.push({ ...k, graph: g, reading: [joinReadings(k.on), joinReadings(k.kun)].filter(Boolean).join(' / '), tags: [] });
+    }
+    for (const w of g.words.values()) {
+      if (seen.has(w.id)) continue;
+      seen.add(w.id);
+      cards.push({ ...w, graph: g });
+    }
+  }
   return cards;
 }
 
@@ -90,6 +115,7 @@ function renderStatus() {
 function renderControls() {
   document.querySelectorAll('[data-deck-type]').forEach((b) => b.classList.toggle('active', b.dataset.deckType === state.deckType));
   document.querySelectorAll('[data-dir]').forEach((b) => b.classList.toggle('active', b.dataset.dir === state.direction));
+  document.querySelectorAll('[data-scope]').forEach((b) => b.classList.toggle('active', b.dataset.scope === state.scope));
   const cram = $('btn-toggle-cram');
   cram.classList.toggle('active', state.practiceAll);
   cram.textContent = state.practiceAll ? t('全カード練習中', 'Practice All: ON') : t('全カード練習', 'Practice All');
@@ -103,7 +129,8 @@ function renderControls() {
   const deck = { all: t('すべて', 'All'), word: t('熟語', 'Words'), kanji: t('漢字', 'Kanji') }[state.deckType];
   const dir = state.direction === 'kanji-to-reading' ? t('漢字→読み', 'Kanji→Reading') : t('読み→漢字', 'Reading→Kanji');
   const tag = state.tagFilter === 'all' ? '' : ` · ${tr(GRAMMAR_TAGS.find((g) => g.id === state.tagFilter))}`;
-  $('controls-summary-text').textContent = `${deck} · ${dir}${tag}${state.practiceAll ? ` · ${t('全カード', 'All cards')}` : ''}`;
+  const scopeLabel = state.scope === 'all' ? t('全マップ', 'All maps') : store.currentMap?.name || '';
+  $('controls-summary-text').textContent = `${scopeLabel} · ${deck} · ${dir}${tag}${state.practiceAll ? ` · ${t('全カード', 'All cards')}` : ''}`;
 
   const total = state.done + state.queue.length;
   $('session-progress-fill').style.width = `${total ? Math.round((state.done / total) * 100) : 100}%`;
@@ -113,7 +140,7 @@ function renderControls() {
 const intervalLabel = (days) => (days <= 0 ? t('すぐ再出題', '< 1 min') : days === 1 ? t('1日後', '1 day') : t(`${days}日後`, `${days} days`));
 
 function renderEmpty(stage) {
-  const empty = store.graph.kanji.size + store.graph.words.size === 0;
+  const empty = allCards().length === 0;
   stage.innerHTML = `
     <div class="flashcard">
       <div class="done-state">
@@ -139,7 +166,7 @@ function contextChip(node, sub, color) {
 }
 
 function renderBack(card) {
-  const g = store.graph;
+  const g = card.graph || store.graph; // context from the map the card came from
   const boxes = [];
   const box = (title, chips) => `<div class="context-box"><div class="context-title">${title}</div><div class="chip-list">${chips}</div></div>`;
 
@@ -276,8 +303,9 @@ function rate(quality) {
   renderAll();
 }
 
-function refilter(patch) {
+async function refilter(patch) {
   Object.assign(state, patch);
+  state.graphs = await loadGraphs();
   rebuildQueue();
   renderAll();
 }
@@ -299,6 +327,11 @@ document.querySelector('main').addEventListener('click', (e) => {
   if (dir) return refilter({ direction: dir });
   const tag = e.target.closest('[data-dtag]')?.dataset.dtag;
   if (tag) return refilter({ tagFilter: tag, deckType: tag !== 'all' && state.deckType === 'kanji' ? 'word' : state.deckType });
+  const scope = e.target.closest('[data-scope]')?.dataset.scope;
+  if (scope) {
+    localStorage.setItem(SCOPE_KEY, scope);
+    return refilter({ scope });
+  }
   if (e.target.closest('#btn-toggle-cram')) return refilter({ practiceAll: !state.practiceAll });
 });
 

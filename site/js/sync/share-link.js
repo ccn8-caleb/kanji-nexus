@@ -7,6 +7,8 @@
 // "Share file": hands a backup .json to the OS share sheet (AirDrop, Files, Drive…)
 // where the browser supports sharing files.
 
+import { choose } from '../core/ui.js';
+
 const PREFIX = '#import=';
 const SOFT_LIMIT = 60_000; // characters; longer links get truncated by some apps
 
@@ -26,7 +28,7 @@ async function gunzipBase64url(b64) {
 }
 
 async function copyTransferLink({ store, toast, t }) {
-  const payload = await gzipBase64url(JSON.stringify(JSON.parse(store.exportText())));
+  const payload = await gzipBase64url(JSON.stringify(JSON.parse(store.exportText({ withName: true }))));
   const url = `${location.origin}${location.pathname}${PREFIX}${payload}`;
   if (url.length > SOFT_LIMIT) {
     toast(t('データが大きいためリンクが長くなっています。ファイル共有の方が確実です', 'Your data makes a very long link; sharing a file is more reliable'));
@@ -48,7 +50,7 @@ async function copyTransferLink({ store, toast, t }) {
 }
 
 async function shareFile({ store, toast, t }) {
-  const file = new File([store.exportText()], 'kanji_nexus.json', { type: 'application/json' });
+  const file = new File([store.exportText({ withName: true })], `kanji_nexus_${(store.currentMap?.name || 'map').replace(/[\\/:*?"<>|\s]+/g, '_')}.json`, { type: 'application/json' });
   if (!navigator.canShare?.({ files: [file] })) {
     toast(t('このブラウザはファイル共有に対応していません。「ファイルに保存」を使ってください', 'File sharing is not supported here — use Download instead'));
     return;
@@ -66,14 +68,18 @@ async function importFromFragment({ store, toast, t }) {
     const data = JSON.parse(await gunzipBase64url(payload));
     const k = Object.keys(data.kanji || {}).length;
     const w = Object.keys(data.words || {}).length;
-    const ok = confirm(
-      t(
-        `転送リンクのデータ（漢字 ${k}・語彙 ${w}）を読み込みますか？\nこの端末の現在のデータは置き換えられます。`,
-        `Import the data from this transfer link (${k} kanji · ${w} words)?\nThis device's current data will be replaced.`
-      )
-    );
-    if (!ok) return;
-    store.importData(data);
+    const name = data.name || t('転送されたマップ', 'Transferred map');
+    const choice = await choose({
+      title: t('転送リンク', 'Transfer link'),
+      message: t(`「${name}」（漢字 ${k}・語彙 ${w}）を読み込みますか？`, `Load "${name}" (${k} kanji · ${w} words)?`),
+      options: [
+        { id: 'new', label: t('新しいマップとして追加', 'Add as a new map'), tone: 'primary' },
+        { id: 'replace', label: t(`「${store.currentMap?.name}」を置き換え`, `Replace "${store.currentMap?.name}"`), tone: 'danger' },
+      ],
+    });
+    if (choice === 'new') await store.importAsNewMap(data, name);
+    else if (choice === 'replace') store.importData(data);
+    else return;
     toast(t('転送リンクからデータを読み込みました', 'Data imported from transfer link'));
   } catch (err) {
     alert(t('転送リンクを読み取れませんでした: ', 'Could not read the transfer link: ') + err.message);
@@ -82,9 +88,9 @@ async function importFromFragment({ store, toast, t }) {
 
 export default {
   id: 'share-link',
-  async install(ctx) {
+  install(ctx) {
     ctx.registerDataAction({ id: 'share-link', section: 'transfer', icon: 'link', ja: '転送リンクを作成', en: 'Create transfer link', run: copyTransferLink });
     ctx.registerDataAction({ id: 'share-file', section: 'transfer', icon: 'share', ja: 'ファイルを共有', en: 'Share file', run: shareFile });
-    await importFromFragment(ctx);
+    importFromFragment(ctx); // not awaited: its dialog must not hold up the page
   },
 };
