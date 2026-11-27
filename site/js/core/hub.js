@@ -29,12 +29,54 @@ let currentApp = null;
 // ---------------------------------------------------------------------------
 // Navigation & deep links (?focus=<node id>)
 // ---------------------------------------------------------------------------
-export function navigate(appId, { focusId } = {}) {
+export function navigate(appId, { focusId, from } = {}) {
   const app = APPS.find((a) => a.id === appId) || APPS[0];
-  location.href = focusId ? `${app.file}?focus=${encodeURIComponent(focusId)}` : app.file;
+  const params = new URLSearchParams();
+  if (focusId) params.set('focus', focusId);
+  if (from) params.set('from', from);
+  location.href = params.size ? `${app.file}?${params}` : app.file;
 }
 
-export const openInMap = (nodeId) => navigate('map', { focusId: nodeId });
+// from: 'drill' → the map shows a "Return to drill" button.
+export const openInMap = (nodeId, { from } = {}) => navigate('map', { focusId: nodeId, from });
+
+// ---------------------------------------------------------------------------
+// "Return to drill": a map opened from a drill card keeps a button back to the same
+// card (the drill saves its session). It lasts while you stay on the map, reloads
+// included; opening any other page ends it.
+// ---------------------------------------------------------------------------
+const RETURN_KEY = 'kanji_nexus_return_to'; // sessionStorage (per tab)
+export const DRILL_SESSION_KEY = 'kanji_nexus_drill_session';
+
+function handleReturnTo(appId) {
+  const url = new URL(location.href);
+  const from = url.searchParams.get('from');
+  if (from) {
+    url.searchParams.delete('from');
+    history.replaceState(null, '', url);
+  }
+  try {
+    if (appId !== 'map') return sessionStorage.removeItem(RETURN_KEY);
+    if (from === 'drill') sessionStorage.setItem(RETURN_KEY, 'drill');
+    if (sessionStorage.getItem(RETURN_KEY) === 'drill') renderReturnToDrill();
+  } catch (_) {}
+}
+
+function renderReturnToDrill() {
+  let progress = '';
+  try {
+    const s = JSON.parse(localStorage.getItem(DRILL_SESSION_KEY) || 'null');
+    if (s?.queue?.length) progress = ` <span class="return-progress">${s.done} / ${s.done + s.queue.length}</span>`;
+  } catch (_) {}
+  document.getElementById('return-to-drill')?.remove();
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'return-to-drill';
+  btn.className = 'return-to-drill';
+  btn.innerHTML = `${icon('drill')}<span>${t('ドリルに戻る', 'Back to drill')}</span>${progress}`;
+  btn.addEventListener('click', () => navigate('drill'));
+  document.body.appendChild(btn);
+}
 
 function consumeFocusId() {
   const url = new URL(location.href);
@@ -378,6 +420,7 @@ export async function initPage(appId) {
     applyStaticText();
     hydrateIcons();
     if (store.currentMap) renderMapSwitcher();
+    if (document.getElementById('return-to-drill')) renderReturnToDrill(); // new language
   };
   render();
   onPrefsChange((what) => what === 'lang' && render());
@@ -402,5 +445,6 @@ export async function initPage(appId) {
     }
   }
 
+  handleReturnTo(appId);
   return { source, focusId: consumeFocusId(), store };
 }

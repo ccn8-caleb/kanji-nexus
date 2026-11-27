@@ -1196,3 +1196,29 @@ kbd,
 .anki-check input[type='radio'],
 .anki-check input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--accent-primary); }
 .anki-name { flex: 1; min-width: 160px; max-width: 320px; padding: 5px 9px; }
+
+/* "Back to drill" on a map opened from a drill card (core/hub.js) */
+.return-to-drill {
+  position: fixed;
+  top: calc(var(--header-total) + 46px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px 8px 13px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent-primary);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.return-to-drill .icon { width: 16px; height: 16px; }
+.return-to-drill .return-progress { font-weight: 600; opacity: 0.8; font-variant-numeric: tabular-nums; }
+.return-to-drill:hover { filter: brightness(1.08); }

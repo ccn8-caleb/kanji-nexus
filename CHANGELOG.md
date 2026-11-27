@@ -7,6 +7,27 @@ deploy also carries a build id (commit hash), shown next to the version in the a
 **Numbering (from 0.6.0):** every release bumps the patch number (0.6.1, 0.6.2, …,
 0.6.15 is fine). The minor number only moves for a milestone called out on purpose.
 
+## [0.6.4] — 2026-11-27 — Drill sessions & progress sync
+
+### Added
+- **Drill sessions are saved.** The queue, the current card (flipped or not) and the
+  count so far survive leaving the page: “View in map”, switching tabs, reloading or
+  the app being closed. The session lasts until it is finished or restarted; changing
+  the filters starts a new one. Vocabulary edits update the session instead of
+  restarting it (deleted words drop out, new ones join at the end).
+- **Back to drill:** a map opened from a drill card shows a “ドリルに戻る · 2 / 45” button
+  that returns to the same card. It stays while you explore the map (reloads
+  included) and goes away once you open another page.
+- **Restart** (next to the session progress) starts the session over without touching
+  your review history — unlike **Reset SRS progress**, which erases it.
+- **Drill progress syncs with Google Drive** (`kanji-nexus-srs.json`), merged card by
+  card: the later review of a card wins, so two devices never conflict. Resetting
+  progress carries across devices too, and older reviews can't come back.
+
+### Changed
+- Review records now carry the time of the last review (`at`); imported Anki progress
+  counts as reviewed at import time.
+
 ## [0.6.3] — 2026-11-27 — Maps & Anki import
 
 ### Added

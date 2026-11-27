@@ -16,6 +16,12 @@ Everything runs client-side from static files. There are no accounts, no server,
 * **Import Anki decks** from the same menu: `.apkg` / `.colpkg` (Anki 2.0, 2.1 and the newer zstd format) or a “Notes in Plain Text” / CSV / TSV export. The importer guesses the word, reading and meaning fields (you can change them), previews the result, understands furigana syntax (`日本[にほん]`) and kanji decks (on/kun), and can bring your Anki review progress into the drill. Import into a new map or add to the open one. The file is read on your device and never uploaded. The SQLite reader ([sql.js](https://github.com/sql-js/sql.js), MIT) and Zstandard decoder ([fzstd](https://github.com/101arrowz/fzstd), MIT) are vendored in `site/js/import/vendor/` and load only when you import.
 * **Drill progress is shared by spelling**, so a word in several maps is one card. The drill can run on this map or on all maps.
 
+### Drill sessions
+
+* A drill session (queue, current card, count) is saved after every step and lasts until you finish it or press **Restart**. Leaving the page, reloading or closing the app doesn't lose it; changing the filters starts a new session.
+* **View in map** on a card opens the map with a **Back to drill** button that returns to the same card.
+* **Restart** starts the session over; **Reset SRS progress** (header) erases your review history.
+
 ### Desktop & tablet
 
 * **Header:** search (`/`), one **Add** button for words or kanji (also `N` / `K`), undo/redo, and a **View** menu for display toggles, link mode, fit and auto-arrange. Data, language and theme sit at the right, or under ⋯ on narrower screens.
@@ -93,7 +99,7 @@ Data from earlier versions moves into a map called **マイマップ** on first 
 * **While connected:** edits sync a few seconds after you make them, and changes from other devices are picked up when you come back to the tab.
 * **Sign-in expiry:** Google sign-ins expire after about an hour and can't renew without a click. The 💾 button then shows **☁!** and **Sync now** signs in again.
 * **Conflicts are decided by content, per map.** If only one side changed, it wins automatically. If both changed, or a new device's data differs from Drive's, you choose which copy to keep. Taking Drive's copy can be undone with Ctrl+Z on the map.
-* **Drill progress is not synced yet;** only the maps are.
+* **Drill progress** syncs too (`kanji-nexus-srs.json`), merged card by card: the later review of each card wins, so it never asks which copy to keep. A progress reset carries across devices.
 
 **One-time setup (site owner).** Google Drive sync stays hidden until a client ID is configured.
 
@@ -212,11 +218,14 @@ Maps live in **IndexedDB** (database `kanji-nexus`): store `maps` (one record pe
 | Key | Contents |
 | --- | --- |
 | `kanji_nexus_srs_v1` | drill progress by node ID (shared by all maps) |
+| `kanji_nexus_srs_meta` | `{ resetAt }`: when progress was last reset (sync drops older reviews) |
 | `kanji_nexus_drill_scope` | drill on this map or all maps |
+| `kanji_nexus_drill_session` | the saved drill session (filters, queue of node IDs, count, flipped) |
+| `kanji_nexus_return_to` | *sessionStorage*: this tab's map was opened from the drill (shows **Back to drill**) |
 | `kanji_nexus_lang` / `kanji_nexus_theme` | interface preferences |
 | `kanji_nexus_map_view` | map toggles (reveal all, readings, auto-link, auto-create) |
 | `kanji_nexus_map_camera:<map id>` | last position and zoom of each map on this device |
-| `kanji_nexus_gdrive` | Drive sync state (enabled, index file, and per map: file id, last synced version and content hash) |
+| `kanji_nexus_gdrive` | Drive sync state (enabled, index file, per map and for drill progress: file id, last synced version and content hash) |
 | `kanji_nexus_gdrive_token` | current Google access token (expires in about an hour) |
 | `kanji_nexus_data_v2` | 0.6.0–0.6.2 data; read once to migrate into a map and never written |
 | `kanji_nexus_data_v1` | older data; read once for migration and never written |

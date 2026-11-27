@@ -259,7 +259,7 @@ export function schedToSrs(card, crt, now = Date.now()) {
 }
 
 // Keep whichever record is further along.
-export const moreAdvanced = (a, b) => (!a ? b : !b ? a : b.interval > a.interval || (b.interval === a.interval && b.reps > a.reps) ? b : a);
+export { moreAdvanced } from '../core/srs.js';
 
 // ---------------------------------------------------------------------------
 // Entries → doc. Mutates doc; returns counts and, per entry, the node id it became

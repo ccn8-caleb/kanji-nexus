@@ -14,10 +14,10 @@ import { icon } from '../core/icons.js';
 import { toast, openModal, closeModal } from '../core/ui.js';
 import { BUILD } from '../core/version.js';
 import { emptyDoc } from '../core/schema.js';
-import { loadSrs, saveSrs } from '../core/srs.js';
+import { loadSrs, saveSrs, moreAdvanced } from '../core/srs.js';
 import { lookup, pickEntry, meaningText, tagsFor } from '../core/dict.js';
 import { tidyAsync } from '../pages/map/layout.js';
-import { parseText, guessMapping, noteToEntry, schedToSrs, moreAdvanced, applyEntries } from './anki-parse.js';
+import { parseText, guessMapping, noteToEntry, schedToSrs, applyEntries } from './anki-parse.js';
 
 const ID = 'anki-dialog';
 let el = null;
@@ -286,14 +286,16 @@ async function runImport() {
     let carried = 0;
     if (opts.progress) {
       const records = loadSrs();
+      const now = Date.now(); // counts as a review now, so it syncs like one
       entries.forEach((e, i) => {
         const id = result.ids[i];
-        const rec = id && schedToSrs(src.sched[notes[i].id], src.crt);
-        if (!rec) return;
+        const sched = id && schedToSrs(src.sched[notes[i].id], src.crt);
+        if (!sched) return;
+        const rec = { ...sched, at: now };
         const next = moreAdvanced(records[id], rec);
         if (next !== records[id]) (records[id] = next), carried++;
       });
-      saveSrs(records);
+      saveSrs(records, { source: 'import' });
     }
 
     if (doc) {
