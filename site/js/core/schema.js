@@ -154,8 +154,9 @@ export const sectionText = {
 export const fileText = (doc, section) => sectionText[section](doc, 0) + '\n';
 
 // Text of a whole bundle (export file / JSON editor / share payload).
-export function bundleText(doc) {
+export function bundleText(doc, { name } = {}) {
   const parts = [`"schema": ${SCHEMA_VERSION}`];
+  if (name) parts.push(`"name": ${j(name)}`); // map name, in backups and transfers
   for (const s of ['kanji', 'words', 'links', 'layout']) parts.push(`${j(s)}: ${sectionText[s](doc, 1)}`);
   return block('{', '}', parts, 0) + '\n';
 }

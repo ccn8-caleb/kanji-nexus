@@ -7,6 +7,38 @@ deploy also carries a build id (commit hash), shown next to the version in the a
 **Numbering (from 0.6.0):** every release bumps the patch number (0.6.1, 0.6.2, …,
 0.6.15 is fine). The minor number only moves for a milestone called out on purpose.
 
+## [0.6.3] — 2026-11-27 — Maps & Anki import
+
+### Added
+- **Several maps.** Each map is its own graph (words, kanji, links, layout, undo
+  history). Switch from the map name next to the logo; **Manage maps** renames,
+  duplicates, downloads and deletes them. Each map remembers its own camera.
+- **Import Anki decks** (switcher menu, Manage maps, or the Data panel):
+  `.apkg` / `.colpkg` from any Anki version (2.0, 2.1, and the newer zstd format),
+  and “Notes in Plain Text” / CSV / TSV exports. The importer guesses which field is
+  the word, reading and meaning (Kaishi, Core 2k/6k and common layouts work out of
+  the box), shows a preview, and handles furigana syntax (`日本[にほん]`), HTML,
+  homographs (人 ひと / じん become two words) and kanji decks (on/kun readings).
+  Import as a new map (laid out before it opens) or add to the open map (undoable).
+  Optionally carries Anki review progress into the drill and fills empty readings and
+  meanings from the dictionary. The file is read on the device; nothing is uploaded.
+- **Drill scope:** drill this map or all maps. A word that appears in several maps is
+  one card (progress is shared by spelling).
+- Backups and transfer links carry the map name; loading one asks whether to add it as
+  a new map or replace the open one. **Download all maps** saves every map in one file.
+
+### Changed
+- Maps are stored in IndexedDB instead of localStorage (room for large decks). Existing
+  data moves into a map called “マイマップ” on first load; the old localStorage copy is
+  left in place as a backup.
+- Google Drive sync now keeps every map: one file per map plus a small index, so only
+  changed maps upload. Renames and deletions carry across devices. The single file
+  from 0.6.0–0.6.2 is adopted as your migrated map's file, not duplicated. A new
+  device's untouched sample map gives way to the maps already in Drive.
+
+### Fixed
+- Opening a transfer link no longer holds up the page until its dialog is answered.
+
 ## [0.6.2] — 2026-11-24 — Map layout
 
 ### Changed

@@ -1057,3 +1057,142 @@ kbd,
     height: 40px;
   }
 }
+
+/* ================= MAP SWITCHER & MANAGE MAPS ================= */
+.map-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  height: 32px;
+  padding: 0 8px 0 10px;
+  border-radius: 9px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-elevated);
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 1;
+  min-width: 0;
+}
+.map-switcher:hover {
+  border-color: var(--accent-primary);
+}
+.map-switcher-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.map-switcher .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+}
+.menu-count {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.map-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.map-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+.map-row.current {
+  border-color: var(--accent-primary);
+  background: rgba(37, 99, 235, 0.05);
+}
+.map-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.map-name {
+  font-weight: 700;
+}
+.map-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.current-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-primary);
+  padding: 2px 8px;
+}
+.icon-btn.danger {
+  color: var(--danger);
+}
+@media (max-width: 699px) {
+  .brand-group .brand-title {
+    display: none; /* the map switcher names what you're looking at; the tab bar names the page */
+  }
+  .map-switcher {
+    max-width: 46vw;
+    height: 36px;
+  }
+  .map-row {
+    flex-wrap: wrap;
+  }
+}
+@media (min-width: 700px) and (pointer: coarse) {
+  .map-switcher {
+    height: 42px;
+    font-size: 14px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Anki import dialog (js/import/anki-ui.js)
+   --------------------------------------------------------------------------- */
+.anki-card { max-width: 680px; }
+.anki-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 34px 16px;
+  border: 2px dashed var(--border-color);
+  border-radius: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.anki-drop:hover,
+.anki-drop.over { border-color: var(--accent-primary); background: var(--bg-elevated); }
+.anki-drop .icon { width: 28px; height: 28px; }
+.anki-drop input { display: none; }
+.anki-status { display: flex; align-items: center; gap: 10px; padding: 28px 4px; font-weight: 600; color: var(--text-muted); }
+.anki-status .icon { width: 20px; height: 20px; animation: spin 1s linear infinite; }
+.anki-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.anki-card .seg-group { display: inline-flex; gap: 2px; padding: 3px; border-radius: 8px; background: var(--bg-elevated); width: fit-content; }
+.anki-card .seg-btn { border: none; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 6px; cursor: pointer; }
+.anki-card .seg-btn.active { background: var(--bg-surface); color: var(--text-main); box-shadow: var(--shadow-sm); }
+.anki-preview-wrap { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 10px; }
+.anki-preview { width: 100%; border-collapse: collapse; font-size: 12px; }
+.anki-preview th { text-align: left; font-weight: 700; color: var(--text-muted); background: var(--bg-elevated); padding: 6px 10px; white-space: nowrap; }
+.anki-preview td { padding: 6px 10px; border-top: 1px solid var(--border-color); vertical-align: top; }
+.anki-preview td:nth-child(3) { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.anki-preview .jp { font-size: 14px; white-space: nowrap; }
+.anki-options { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.anki-check { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.anki-check input[type='radio'],
+.anki-check input[type='checkbox'] { width: 16px; height: 16px; accent-color: var(--accent-primary); }
+.anki-name { flex: 1; min-width: 160px; max-width: 320px; padding: 5px 9px; }

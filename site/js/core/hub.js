@@ -8,11 +8,14 @@
 // To add a sync/transfer method, add a plugin to js/sync/index.js.
 
 import { store } from './store.js';
+import { escapeHtml } from './util.js';
 import { t, tr, isEn, setLang, getLang, toggleTheme, onPrefsChange, applyStaticText } from './prefs.js';
 import { toast, openModal, closeModal, initTooltips } from './ui.js';
 import { registerServiceWorker, installAvailable, promptInstall, onInstallAvailable } from './pwa.js';
 import plugins from '../sync/index.js';
 import { icon, hydrateIcons } from './icons.js';
+import { renderMapSwitcher, openManageMaps, openAnkiImport, downloadMap, downloadAllMaps } from './maps-ui.js';
+import { choose } from './ui.js';
 import { APP_VERSION, BUILD, CHANGELOG_URL, versionLabel } from './version.js';
 
 export const APPS = [
@@ -148,6 +151,7 @@ export function registerDataAction(action) {
 
 const SECTIONS = [
   { id: 'sync', ja: 'クラウド同期', en: 'Cloud sync' },
+  { id: 'import', ja: 'インポート', en: 'Import' },
   { id: 'transfer', ja: '端末間の転送', en: 'Move to another device' },
   { id: 'tools', ja: 'メンテナンス', en: 'Maintenance' },
 ];
@@ -189,26 +193,44 @@ const pluginCtx = {
   setSyncStatus,
 };
 
-function downloadBackup() {
-  const blob = new Blob([store.exportText()], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `kanji_nexus_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.json`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+// Loading data: a file with all maps adds each as a new map; a single map (or an old
+// backup) asks whether to add it as a new map or replace the open one.
+export async function importBundle(parsed, { fallbackName = '', ask = true } = {}) {
+  if (parsed?.kind === 'kanji-nexus-workspace' && Array.isArray(parsed.maps)) {
+    for (const m of parsed.maps) await store.importAsNewMap(m, m.name, { switchTo: false });
+    toast(t(`${parsed.maps.length} 個のマップを追加しました`, `Added ${parsed.maps.length} map(s)`));
+    return true;
+  }
+  const name = parsed?.name || fallbackName || t('インポート', 'Import');
+  const choice = ask
+    ? await choose({
+        title: t('データの読み込み', 'Load data'),
+        message: t(`「${name}」をどう読み込みますか？`, `How should "${name}" be loaded?`),
+        options: [
+          { id: 'new', label: t('新しいマップとして追加', 'Add as a new map'), tone: 'primary' },
+          { id: 'replace', label: t(`「${store.currentMap?.name}」を置き換え`, `Replace "${store.currentMap?.name}"`), tone: 'danger' },
+        ],
+      })
+    : 'new';
+  if (choice === 'new') {
+    await store.importAsNewMap(parsed, name);
+    toast(t(`マップ「${store.currentMap.name}」を追加しました`, `Added map "${store.currentMap.name}"`));
+  } else if (choice === 'replace') {
+    store.importData(parsed);
+    toast(t('データを読み込みました（元に戻せます）', 'Data loaded (undo available)'));
+  } else return false;
+  return true;
 }
 
-function importText(text, { confirmFirst = false } = {}) {
+async function importText(text, opts) {
+  let parsed;
   try {
-    const parsed = JSON.parse(text);
-    if (confirmFirst && !confirm(t('現在のデータを置き換えますか？', 'Replace your current data?'))) return false;
-    store.importData(parsed);
-    toast(t('データを読み込みました', 'Data loaded'));
-    return true;
+    parsed = JSON.parse(text);
   } catch (err) {
     alert(t('JSONの解析に失敗しました: ', 'Could not parse JSON: ') + err.message);
     return false;
   }
+  return importBundle(parsed, opts);
 }
 
 function buildDataPanel() {
@@ -246,15 +268,17 @@ export function openDataPanel() {
         <button type="button" class="icon-btn small" data-close-modal="hub-data-panel" aria-label="Close">${icon('close')}</button>
       </div>
       <p class="panel-note">${t(
-        `データはこのブラウザに保存されています（漢字 ${g.kanji.size}・語彙 ${g.words.size}）。他の端末へ移すにはクラウド同期・転送リンク・バックアップファイルを使ってください。`,
-        `Your data lives in this browser (${g.kanji.size} kanji · ${g.words.size} words). Use cloud sync, a transfer link, or a backup file to move it to another device.`
+        `データはこのブラウザに保存されています。表示中のマップ「${escapeHtml(store.currentMap?.name || '')}」：漢字 ${g.kanji.size}・語彙 ${g.words.size}（全 ${store.maps.length} マップ）。他の端末へ移すにはクラウド同期・転送リンク・バックアップファイルを使ってください。`,
+        `Your data lives in this browser. Open map "${escapeHtml(store.currentMap?.name || '')}": ${g.kanji.size} kanji · ${g.words.size} words (${store.maps.length} map(s) in total). Use cloud sync, a transfer link, or a backup file to move it to another device.`
       )}</p>
 
       <div class="field-group">
         <label class="field-label">${t('バックアップ', 'Backup')}</label>
         <div class="chip-row">
-          <button type="button" class="tb-btn primary" id="hub-export">${icon('fileDown')}${t('ファイルに保存', 'Download .json')}</button>
+          <button type="button" class="tb-btn primary" id="hub-export">${icon('fileDown')}${t('このマップを保存', 'Download this map')}</button>
+          <button type="button" class="tb-btn" id="hub-export-all">${icon('fileDown')}${t('すべてのマップを保存', 'Download all maps')}</button>
           <label class="tb-btn">${icon('fileUp')}${t('ファイルから読込', 'Load .json')}<input type="file" id="hub-import-file" accept=".json,application/json" hidden></label>
+          <button type="button" class="tb-btn" id="hub-manage-maps">${icon('map')}${t('マップを管理', 'Manage maps')}</button>
         </div>
       </div>
 
@@ -263,8 +287,8 @@ export function openDataPanel() {
       <div class="field-group">
         <label class="field-label">${t('サンプル・初期化', 'Sample & reset')}</label>
         <div class="chip-row">
-          <button type="button" class="tb-btn" id="hub-reset-starter">${icon('reset')}${t('サンプルに戻す', 'Reset to sample')}</button>
-          <button type="button" class="tb-btn danger" id="hub-wipe">${icon('delete')}${t('すべて消去して空から始める', 'Erase all & start empty')}</button>
+          <button type="button" class="tb-btn" id="hub-reset-starter">${icon('reset')}${t('このマップをサンプルに戻す', 'Reset this map to the sample')}</button>
+          <button type="button" class="tb-btn danger" id="hub-wipe">${icon('delete')}${t('このマップを空にする', 'Empty this map')}</button>
         </div>
       </div>
 
@@ -280,16 +304,21 @@ export function openDataPanel() {
   el.querySelector('details').addEventListener('toggle', (e) => {
     if (e.target.open) textArea.value = store.exportText();
   });
-  el.querySelector('#hub-json-apply').addEventListener('click', () => {
-    if (importText(textArea.value)) closeModal('hub-data-panel');
+  el.querySelector('#hub-json-apply').addEventListener('click', async () => {
+    if (await importText(textArea.value)) closeModal('hub-data-panel');
   });
-  el.querySelector('#hub-export').addEventListener('click', downloadBackup);
+  el.querySelector('#hub-export').addEventListener('click', () => downloadMap(store.currentMap.id));
+  el.querySelector('#hub-export-all').addEventListener('click', downloadAllMaps);
+  el.querySelector('#hub-manage-maps').addEventListener('click', () => {
+    closeModal('hub-data-panel');
+    openManageMaps();
+  });
   el.querySelector('#hub-import-file').addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
-    if (file && importText(await file.text(), { confirmFirst: true })) closeModal('hub-data-panel');
+    if (file && (await importText(await file.text(), { fallbackName: file.name.replace(/\.json$/i, '') }))) closeModal('hub-data-panel');
   });
   el.querySelector('#hub-reset-starter').addEventListener('click', async () => {
-    if (!confirm(t('サンプルデータに戻しますか？（現在のデータは置き換えられます）', 'Reset to the sample data? Your current data will be replaced.'))) return;
+    if (!confirm(t('このマップをサンプルデータに戻しますか？（元に戻せます）', 'Reset this map to the sample data? (Undo is available.)'))) return;
     try {
       await store.resetToStarter();
       closeModal('hub-data-panel');
@@ -299,7 +328,7 @@ export function openDataPanel() {
     }
   });
   el.querySelector('#hub-wipe').addEventListener('click', () => {
-    if (!confirm(t('すべての漢字と語彙を消去しますか？', 'Erase all kanji and words?'))) return;
+    if (!confirm(t('このマップの漢字と語彙をすべて消去しますか？', 'Erase all kanji and words in this map?'))) return;
     store.wipe();
     closeModal('hub-data-panel');
     toast(t('データを消去しました', 'All data erased'));
@@ -348,6 +377,7 @@ export async function initPage(appId) {
     renderControls();
     applyStaticText();
     hydrateIcons();
+    if (store.currentMap) renderMapSwitcher();
   };
   render();
   onPrefsChange((what) => what === 'lang' && render());
@@ -357,7 +387,11 @@ export async function initPage(appId) {
   announceUpdate();
 
   const source = await store.load();
+  window.KANJI_NEXUS = { ...(window.KANJI_NEXUS || {}), store }; // console/debugging handle
+  renderMapSwitcher();
+  registerDataAction({ id: 'anki', section: 'import', icon: 'fileUp', ja: 'Ankiデッキを読み込む（.apkg / テキスト）', en: 'Import Anki deck (.apkg / text)', run: ({ closePanel }) => (closePanel(), openAnkiImport()) });
   if (source === 'legacy') toast(t('以前のデータを新しい形式に移行しました', 'Migrated your data to the new format'));
+  if (source === 'local') toast(t('データを「マイマップ」に移しました（複数マップに対応）', 'Your data is now the map "マイマップ" (multiple maps supported)'));
   if (source === 'empty') toast(t('サンプルデータを読み込めませんでした', 'Could not load the sample data'));
 
   for (const plugin of plugins) {

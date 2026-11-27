@@ -3,7 +3,9 @@
 
 const API = 'https://www.googleapis.com/drive/v3/files';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
-export const FILE_NAME = 'kanji-nexus.json';
+export const LEGACY_FILE = 'kanji-nexus.json'; // 0.6.0–0.6.2: the single synced map
+export const INDEX_FILE = 'kanji-nexus-index.json'; // list of maps → files
+export const mapFileName = (id) => `kanji-nexus-map-${id}.json`;
 const META_FIELDS = 'id,version,modifiedTime';
 
 export class TokenExpiredError extends Error {}
@@ -22,9 +24,9 @@ async function call(token, url, options = {}) {
   return res;
 }
 
-// Newest matching file (two devices connecting at the same moment could create two).
-export async function findFile(token) {
-  const q = encodeURIComponent(`name = '${FILE_NAME}' and trashed = false`);
+// Newest file with this name (two devices connecting at once could create two).
+export async function findFile(token, name) {
+  const q = encodeURIComponent(`name = '${name}' and trashed = false`);
   const res = await call(token, `${API}?spaces=appDataFolder&q=${q}&orderBy=modifiedTime desc&pageSize=10&fields=files(${META_FIELDS})`);
   return (await res.json()).files?.[0] || null;
 }
@@ -40,11 +42,11 @@ export async function download(token, id) {
   return res.text();
 }
 
-export async function create(token, text) {
+export async function create(token, text, name) {
   const boundary = `kanji-nexus-${Math.random().toString(36).slice(2)}`;
   const body =
     `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
-    JSON.stringify({ name: FILE_NAME, parents: ['appDataFolder'], mimeType: 'application/json' }) +
+    JSON.stringify({ name, parents: ['appDataFolder'], mimeType: 'application/json' }) +
     `\r\n--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${text}\r\n--${boundary}--`;
   const res = await call(token, `${UPLOAD}?uploadType=multipart&fields=${META_FIELDS}`, {
     method: 'POST',
@@ -62,4 +64,9 @@ export async function update(token, id, text) {
   });
   if (!res) throw new Error('Google Drive file disappeared');
   return res.json();
+}
+
+// App-data files can't be trashed, only deleted (permanently).
+export async function remove(token, id) {
+  await call(token, `${API}/${id}`, { method: 'DELETE' });
 }
