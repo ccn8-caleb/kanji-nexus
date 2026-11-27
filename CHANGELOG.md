@@ -28,6 +28,14 @@ deploy also carries a build id (commit hash), shown next to the version in the a
 - Review records now carry the time of the last review (`at`); imported Anki progress
   counts as reviewed at import time.
 
+### Fixed
+- Anki import: a reading field that holds more than the reading (a conjugation table,
+  several forms, HTML tables) no longer becomes one long run of kana. Readings must fit
+  the spelling (each kanji 1–6 kana, written kana as written); the first one that fits
+  is used, otherwise the reading is left for the dictionary to fill.
+- Anki import: a single kanji with a katakana reading (借 シャク) is treated as that
+  kanji's on'yomi, not as a separate one-character word.
+
 ## [0.6.3] — 2026-11-27 — Maps & Anki import
 
 ### Added

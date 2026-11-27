@@ -17,7 +17,7 @@ const ENTITIES = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", 
 export function stripHtml(value) {
   return String(value || '')
     .replace(/\[sound:[^\]]*\]/g, '')
-    .replace(/<br\s*\/?>|<\/(div|p|li)>/gi, '\n')
+    .replace(/<br\s*\/?>|<hr\s*\/?>|<\/(div|p|li|td|th|tr|table|h[1-6]|ul|ol)>/gi, '\n')
     .replace(/<[^>]*>/g, '')
     .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
       if (e[0] === '#') return String.fromCodePoint(e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : Number(e.slice(1)));
@@ -46,6 +46,34 @@ const KANA = /[\p{Script=Hiragana}\p{Script=Katakana}ー]/u;
 // "見る、観る" / "行く; 往く" → the first spelling
 const firstVariant = (s) => String(s).split(/[、,;，；/／|｜\n]/)[0].trim();
 const onlyKana = (s) => [...String(s)].filter((c) => KANA.test(c)).join('');
+const variants = (s) => String(s).split(/[、,;，；/／|｜\n]/).map((x) => x.trim()).filter(Boolean);
+
+// Does a reading fit the spelling? Each kanji stands for 1–6 kana and the kana in the
+// word must appear as written: 借りる fits かりる, not かりるにをりるる… (a conjugation
+// table in the reading field). Compared in hiragana, so katakana readings fit too.
+function readingPattern(label) {
+  let src = '';
+  for (const ch of label) {
+    if (/[\p{Script=Han}々〆ヶ〇]/u.test(ch)) src += '[ぁ-ゖー]{1,6}?';
+    else if (KANA.test(ch)) src += toHiragana(ch).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    else src += '(?:)'; // ・～ and the like: not read
+  }
+  return src;
+}
+// The first candidate that fits the label exactly; failing that, the shortest start of a
+// candidate that does (a reading followed by junk). '' if nothing fits.
+export function pickReading(label, candidates) {
+  const src = readingPattern(label);
+  const exact = new RegExp(`^${src}$`);
+  const prefix = new RegExp(`^${src}`);
+  const kana = candidates.map(onlyKana).filter(Boolean);
+  for (const c of kana) if (exact.test(toHiragana(c))) return c;
+  for (const c of kana) {
+    const m = toHiragana(c).match(prefix);
+    if (m) return c.slice(0, m[0].length);
+  }
+  return '';
+}
 const splitList = (s) => stripHtml(s).split(/[、,;，；・/／\s]+/).map((x) => x.trim()).filter(Boolean);
 
 // ---------------------------------------------------------------------------
@@ -228,15 +256,19 @@ export function noteToEntry(note, m) {
   }
 
   if (!main || [...main].length > 16 || !JAPANESE_WORD.test(main)) return null;
-  let reading = '';
-  const readingField = stripHtml(get(m.reading));
-  if (readingField) reading = onlyKana(firstVariant(hasFurigana(readingField) ? parseFurigana(readingField).reading : readingField));
-  if (!reading && m.furigana >= 0) {
-    const f = parseFurigana(firstVariant(stripHtml(get(m.furigana))));
-    if (f.base.replace(/\s/g, '') === main || !extractKanji(f.base).length || extractKanji(main).every((k) => f.base.includes(k))) reading = onlyKana(f.reading);
-  }
-  if (!reading && readingFromMain) reading = onlyKana(readingFromMain);
-  if (!reading && !extractKanji(main).length) reading = main; // kana word
+  if (!extractKanji(main).length) return { kind: 'word', label: main, reading: main, meaning }; // kana word
+
+  // Reading candidates, best source first; only one that fits the spelling is used
+  // (none fits → left empty, for the dictionary to fill).
+  const candidates = [];
+  const asReading = (text) => (hasFurigana(text) ? parseFurigana(text).reading : text);
+  for (const v of variants(stripHtml(get(m.reading)))) candidates.push(asReading(v));
+  if (m.furigana >= 0) for (const v of variants(stripHtml(get(m.furigana)))) candidates.push(asReading(v));
+  if (readingFromMain) candidates.push(readingFromMain);
+  const reading = pickReading(main, candidates);
+
+  // One kanji read in katakana (借 シャク) is a kanji card, not a word: its on'yomi.
+  if ([...main].length === 1 && reading && /^[ァ-ヺー]+$/.test(reading)) return { kind: 'kanji', ch: main, on: [reading], kun: [], meaning };
   return { kind: 'word', label: main, reading, meaning };
 }
 
@@ -268,6 +300,7 @@ export { moreAdvanced } from '../core/srs.js';
 // ---------------------------------------------------------------------------
 export function applyEntries(doc, entries, { linkDerivatives = true } = {}) {
   const stats = { added: 0, updated: 0, kanjiAdded: 0, homographs: 0 };
+  let kanjiEntriesAdded = 0;
   const ids = [];
   const byLabel = new Map();
   for (const key of Object.keys(doc.words)) {
@@ -292,6 +325,7 @@ export function applyEntries(doc, entries, { linkDerivatives = true } = {}) {
       } else {
         addKanji(doc, e.ch, { on: e.on, kun: e.kun, notes: e.meaning });
         stats.added++;
+        kanjiEntriesAdded++;
       }
       ids.push(`k:${e.ch}`);
       continue;
@@ -317,6 +351,6 @@ export function applyEntries(doc, entries, { linkDerivatives = true } = {}) {
     stats.added++;
     ids.push(`w:${key}`);
   }
-  stats.kanjiAdded = Object.keys(doc.kanji).length - kanjiBefore - (entries.some((e) => e?.kind === 'kanji') ? stats.added : 0);
+  stats.kanjiAdded = Object.keys(doc.kanji).length - kanjiBefore - kanjiEntriesAdded;
   return { stats, ids };
 }
