@@ -7,6 +7,35 @@ deploy also carries a build id (commit hash), shown next to the version in the a
 **Numbering (from 0.6.0):** every release bumps the patch number (0.6.1, 0.6.2, …,
 0.6.15 is fine). The minor number only moves for a milestone called out on purpose.
 
+## [0.6.5] — 2026-11-27 — Example sentences & map clean-up
+
+### Added
+- **Example sentences on words** (`examples: [{ ja, reading?, en? }]` in `words.json`).
+  The inspector lists them with the word highlighted and lets you add, edit and delete
+  them; the drill shows up to two on the back of the card.
+- **Anki import reads example sentences.** Sentence fields (Kaishi: Sentence / Sentence
+  Furigana / Sentence Meaning; Core: Expression / Sentence-Kana / Sentence-English) are
+  guessed like the other fields and become each word's example. **Sentence-only notes**
+  become examples of the words they contain instead of map nodes; sentences that match
+  no word are skipped and counted.
+- **Clean up this map** (map menu): checks the open map and lists suggestions with
+  checkboxes, applied together as one undoable step:
+  - sentences stored as words → examples of the words they contain (node removed)
+  - one kanji read in katakana (借 シャク) → that kanji's on'yomi
+  - readings that don't fit the spelling → the part that fits, or the dictionary's
+  - empty readings, meanings and tags → from the dictionary (pick the entry where
+    there are several, e.g. 生 なま / せい)
+  - kanji without readings → guessed from their words (opt-in)
+- **Fill from dictionary** in the inspector when a word's reading or meaning is empty.
+
+### Fixed
+- Edits made just before leaving a page could be lost (the IndexedDB write didn't
+  finish in time; about 1 in 6 when switching pages straight after an edit). An unsaved
+  map is now also written synchronously on page exit and recovered on the next load.
+- Anki import: furigana without a space before it (`は学生[がくせい]`) no longer drops
+  the kana in front of the kanji from the reading; a reading column with a few
+  sentence readings in it is still recognised.
+
 ## [0.6.4] — 2026-11-27 — Drill sessions & progress sync
 
 ### Added

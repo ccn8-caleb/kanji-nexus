@@ -10,6 +10,8 @@ import { toast, bindImeField, bindSwipe, isCompact, isTouch } from '../../core/u
 import { icon } from '../../core/icons.js';
 import { attachKanaInput } from '../../core/kana.js';
 import { settle, getPos } from './layout.js';
+import { examplesHtml } from '../../core/examples.js';
+import { lookup, pickEntry, meaningText, tagsFor } from '../../core/dict.js';
 
 const elPanel = document.getElementById('inspector-panel');
 const elBody = document.getElementById('inspector-body');
@@ -176,6 +178,7 @@ function renderSummary(ctx, node, common) {
     </div>
     ${meaning ? `<div class="summary-meaning">${escapeHtml(meaning)}</div>` : ''}
     ${node.notes ? `<div class="summary-notes">${escapeHtml(node.notes)}</div>` : ''}
+    ${!isKanji && node.examples.length ? `<div class="field-group"><label class="field-label">${t('例文', 'Examples')}</label>${examplesHtml(node.examples, node.label, { limit: 8 })}</div>` : ''}
     ${related}
     ${common.dict}`;
 
@@ -293,7 +296,10 @@ function renderWord(ctx, node, common) {
       <input type="text" id="insp-reading" class="field-input" value="${escapeHtml(node.reading)}">
     </div>
     <div class="field-group">
-      <label class="field-label">${t('意味', 'Meaning')}</label>
+      <label class="field-label">
+        <span>${t('意味', 'Meaning')}</span>
+        ${!node.reading || !node.meaning ? `<button type="button" id="btn-fill-dict" class="hint-chip">${icon('dictionary')}${t('辞書で補完', 'Fill from dictionary')}</button>` : ''}
+      </label>
       <textarea id="insp-meaning" class="field-textarea short" lang="en">${escapeHtml(node.meaning)}</textarea>
     </div>
     <div class="field-group">
@@ -315,6 +321,25 @@ function renderWord(ctx, node, common) {
     <div class="field-group">
       <label class="field-label">${t('メモ', 'Notes')}</label>
       <textarea id="insp-notes" class="field-textarea">${escapeHtml(node.notes)}</textarea>
+    </div>
+    <div class="field-group">
+      <label class="field-label">
+        <span>${t('例文', 'Example sentences')}</span>
+        <button type="button" id="btn-add-example" class="hint-chip">＋ ${t('例文を追加', 'Add example')}</button>
+      </label>
+      <div class="example-edit-list">${(store.doc.words[node.key].examples || [])
+        .map(
+          (e, i) => `
+        <div class="example-edit" data-ex="${i}">
+          <textarea class="field-textarea short" data-ex-field="ja" lang="ja" placeholder="${t('例文', 'Sentence')}">${escapeHtml(e.ja)}</textarea>
+          <div class="example-edit-row">
+            <input type="text" class="field-input" data-ex-field="reading" lang="ja" placeholder="${t('読み（任意）', 'Reading (optional)')}" value="${escapeHtml(e.reading || '')}">
+            <button type="button" class="icon-btn small danger" data-ex-del="${i}" aria-label="${t('例文を削除', 'Delete example')}">${icon('delete')}</button>
+          </div>
+          <input type="text" class="field-input" data-ex-field="en" lang="en" placeholder="${t('訳（任意）', 'Translation (optional)')}" value="${escapeHtml(e.en || '')}">
+        </div>`
+        )
+        .join('')}</div>
     </div>
     <div class="field-group">
       <label class="field-label">${t('関連語リンク (対義語・類義語・派生語)', 'Related Word Links')}</label>
@@ -347,6 +372,46 @@ function renderWord(ctx, node, common) {
   bindField(ctx, elBody.querySelector('#insp-reading'), (doc, v) => (doc.words[node.key].reading = v.trim()));
   bindField(ctx, elBody.querySelector('#insp-meaning'), (doc, v) => (doc.words[node.key].meaning = v.trim()));
   bindField(ctx, elBody.querySelector('#insp-notes'), (doc, v) => (doc.words[node.key].notes = v));
+
+  // ---- examples ----
+  elBody.querySelectorAll('.example-edit').forEach((row) => {
+    const i = Number(row.dataset.ex);
+    row.querySelectorAll('[data-ex-field]').forEach((el) =>
+      bindField(ctx, el, (doc, v) => {
+        const ex = doc.words[node.key].examples?.[i];
+        if (!ex) return;
+        const field = el.dataset.exField;
+        if (v.trim() || field === 'ja') ex[field] = v.trim();
+        else delete ex[field];
+      })
+    );
+  });
+  elBody.querySelectorAll('[data-ex-del]').forEach((b) =>
+    b.addEventListener('click', () => store.edit((doc) => doc.words[node.key].examples.splice(Number(b.dataset.exDel), 1)))
+  );
+  elBody.querySelector('#btn-add-example').addEventListener('click', () => {
+    store.edit((doc) => (doc.words[node.key].examples ||= []).push({ ja: '' }));
+    const rows = elBody.querySelectorAll('.example-edit [data-ex-field="ja"]');
+    rows[rows.length - 1]?.focus();
+  });
+
+  // ---- fill empty reading / meaning / tags from the dictionary ----
+  elBody.querySelector('#btn-fill-dict')?.addEventListener('click', async (e) => {
+    e.currentTarget.disabled = true;
+    const entries = await lookup(node.label).catch(() => null);
+    const entry = pickEntry(entries, node.reading);
+    if (!entry) {
+      toast(entries === null ? t('辞書を利用できません', 'The dictionary is not available') : t(`「${node.label}」は辞書にありません`, `"${node.label}" is not in the dictionary`));
+      e.currentTarget.disabled = false;
+      return;
+    }
+    store.edit((doc) => {
+      const w = doc.words[node.key];
+      if (!w.reading && extractKanji(node.label).length) w.reading = entry.r[0];
+      if (!w.meaning) w.meaning = meaningText(entry);
+      if (!w.tags.length) w.tags = tagsFor(entry);
+    });
+  });
 
   // Re-place this word between its kanji (unpinning it) and let neighbours make room.
   elBody.querySelector('#btn-recenter-compound')?.addEventListener('click', () => {

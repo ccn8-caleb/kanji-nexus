@@ -88,6 +88,11 @@ func lint(d *Doc, dir string) []issue {
 				add("error", "words.json", "%s: unknown tag %q", key, t)
 			}
 		}
+		for i, ex := range w.Examples {
+			if strings.TrimSpace(ex.Ja) == "" {
+				add("error", "words.json", "%s: example %d has no Japanese text", key, i+1)
+			}
+		}
 		for _, ch := range extractKanji(labelOf(key)) {
 			used[ch] = true
 			if _, ok := d.Kanji[ch]; !ok {

@@ -14,6 +14,8 @@ Everything runs client-side from static files. There are no accounts, no server,
 
 * **Several maps.** Each map is a separate graph with its own layout and undo history: one for a textbook, one for a JLPT level, one imported from Anki. Switch from the map name next to the logo; **Manage maps…** renames, duplicates, downloads and deletes them.
 * **Import Anki decks** from the same menu: `.apkg` / `.colpkg` (Anki 2.0, 2.1 and the newer zstd format) or a “Notes in Plain Text” / CSV / TSV export. The importer guesses the word, reading and meaning fields (you can change them), previews the result, understands furigana syntax (`日本[にほん]`) and kanji decks (on/kun), and can bring your Anki review progress into the drill. Import into a new map or add to the open one. The file is read on your device and never uploaded. The SQLite reader ([sql.js](https://github.com/sql-js/sql.js), MIT) and Zstandard decoder ([fzstd](https://github.com/101arrowz/fzstd), MIT) are vendored in `site/js/import/vendor/` and load only when you import.
+* **Example sentences** come along too: each word gets the example from its note (Kaishi, Core and similar decks are recognised), and notes that are only a sentence become examples of the words they contain rather than map nodes.
+* **Clean up this map** (map menu) checks a map and suggests fixes you can tick and apply in one undoable step: sentences stored as words, one-kanji words read in katakana, readings that don't fit the spelling, and empty readings/meanings filled from the dictionary.
 * **Drill progress is shared by spelling**, so a word in several maps is one card. The drill can run on this map or on all maps.
 
 ### Drill sessions
@@ -121,7 +123,8 @@ The starter sample lives in four files in `site/data/`. Backups and transfer lin
 { "構": {"on":["コウ"],"kun":["かま.える","かま.う"]} }
 
 // words.json — keyed by written form, sorted by reading
-{ "構造": {"reading":"こうぞう","meaning":"structure; construction; …","notes":"物事の組み立て・仕組み"},
+{ "構造": {"reading":"こうぞう","meaning":"structure; construction; …","notes":"物事の組み立て・仕組み",
+           "examples":[{"ja":"建物の構造を調べる。","reading":"たてもののこうぞうをしらべる。","en":"Examine the building's structure."}]},
   "構成": {"reading":"こうせい","tags":["suru"]} }
 
 // links.json — undirected [word, word, type]
@@ -132,7 +135,7 @@ The starter sample lives in four files in `site/data/`. Backups and transfer lin
 ```
 
 * **Parent kanji are never stored.** A word attaches to every registered kanji in its spelling, with `々` resolving to the preceding kanji (人々 → 人). Delete a kanji and its words stay; add one and matching words attach to it.
-* **Optional fields** (`meaning`, `notes`, `tags`, `color`) are omitted when empty or default.
+* **Optional fields** (`meaning`, `notes`, `tags`, `examples`, `color`) are omitted when empty or default. An example needs `ja`; `reading` (kana) and `en` are optional.
 * **Homographs** use a `#` suffix on the key: `"生物#なまもの"` displays as 生物.
 * **Layout is disposable.** Entries missing from `layout.json` are placed automatically next to their kanji. Delete the file's contents (`{"kanji":{},"words":{}}`) and the map tidies itself. A position with a third value, `[x, y, 1]`, is **pinned**: automatic layout never moves it (dragging a node in the app pins it).
 * Tags: `suru`, `intransitive`, `transitive`, `na-adj`, `i-adj`, `adverb`, `kana`. Link types: `related`, `antonym`, `synonym`, `derivative`, `lookalike`. Both lists are defined in `site/js/core/constants.js`.
@@ -179,6 +182,7 @@ site/
     store.js       owns the maps and the open doc: load/migrate, undo/redo, persist, import/reset/wipe, cross-tab sync
     db.js          IndexedDB wrapper (maps + workspace), in-memory fallback
     maps-ui.js     map switcher, Manage maps dialog, downloads
+    examples.js    example sentences: normalise, highlight, attach to the words a sentence contains
     srs.js         SM-2 scheduling and progress storage
     prefs.js       language + theme (shared across pages and tabs)
     ui.js          toast/snackbar, modals & bottom sheets, popover/context menus, layout modes, tooltips
@@ -189,6 +193,7 @@ site/
     hub.js         page shell: nav, header controls, Data panel, deep links
   js/pages/        stats.js, drill.js, map/{main,canvas,inspector,layout}.js
   js/sync/         transfer/sync plugins (see below); config.js holds the Google client ID
+  js/cleanup/      Clean up this map: scan.js (pure: find issues, apply fixes), ui.js (dialog)
   js/import/       Anki import: anki-ui.js (dialog), anki-parse.js (pure: fields, furigana,
                    scheduling → SRS), anki-worker.js (zip + zstd + SQLite off the main thread),
                    vendor/ (sql.js, fzstd; cached on first use, not precached)
@@ -227,5 +232,6 @@ Maps live in **IndexedDB** (database `kanji-nexus`): store `maps` (one record pe
 | `kanji_nexus_map_camera:<map id>` | last position and zoom of each map on this device |
 | `kanji_nexus_gdrive` | Drive sync state (enabled, index file, per map and for drill progress: file id, last synced version and content hash) |
 | `kanji_nexus_gdrive_token` | current Google access token (expires in about an hour) |
+| `kanji_nexus_unsaved` | a map whose save was still in progress when a page closed; replayed into IndexedDB on the next load, then removed |
 | `kanji_nexus_data_v2` | 0.6.0–0.6.2 data; read once to migrate into a map and never written |
 | `kanji_nexus_data_v1` | older data; read once for migration and never written |

@@ -21,6 +21,16 @@ export function openAnkiImport(options = {}) {
     });
 }
 
+// Clean-up tool loads on demand too.
+export function openCleanup() {
+  import(`../cleanup/ui.js?v=${BUILD}`)
+    .then((m) => m.openCleanup())
+    .catch((err) => {
+      console.error(err);
+      toast(t('整理ツールを読み込めませんでした', 'Could not load the clean-up tool'));
+    });
+}
+
 export function renderMapSwitcher() {
   const brand = document.querySelector('.brand-group');
   if (!brand) return;
@@ -52,6 +62,7 @@ function switcherItems() {
     { separator: true },
     { label: t('新しいマップ', 'New map'), icon: 'add', run: newMap },
     { label: t('Ankiデッキを読み込む…', 'Import Anki deck…'), icon: 'fileUp', run: () => openAnkiImport() },
+    { label: t('このマップを整理…', 'Clean up this map…'), icon: 'tidy', run: openCleanup },
     { label: t('マップを管理…', 'Manage maps…'), icon: 'tools', run: openManageMaps },
   ];
 }

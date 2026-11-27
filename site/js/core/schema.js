@@ -4,7 +4,8 @@
 //   {
 //     schema: 2,
 //     kanji:  { "構": { on: ["コウ"], kun: ["かま.える"], notes?, color? } },
-//     words:  { "構造": { reading: "こうぞう", meaning?: "structure; …", tags?: [], notes?, color? } },
+//     words:  { "構造": { reading: "こうぞう", meaning?: "structure; …", tags?: [], notes?,
+//                         examples?: [{ ja, reading?, en? }], color? } },
 //     links:  [ ["構造", "構成", "synonym"] ],             // undirected
 //     layout: { kanji: { "構": [x, y] }, words: { "構造": [x, y, 1] } }   // 3rd value 1 = pinned
 //   }
@@ -14,6 +15,7 @@
 
 import { SCHEMA_VERSION, LINK_TYPES, TAG_IDS, DEFAULT_COLORS } from './constants.js';
 import { splitReadings } from './util.js';
+import { normalizeExamples } from './examples.js';
 
 const str = (v) => (v == null ? '' : String(v));
 const strList = (v) => (Array.isArray(v) ? v.map(str).map((s) => s.trim()).filter(Boolean) : splitReadings(v));
@@ -49,6 +51,7 @@ export function normalize(raw) {
       meaning: str(w?.meaning).trim(),
       tags: [...new Set(strList(w?.tags).filter((t) => TAG_IDS.has(t)))],
       notes: str(w?.notes),
+      examples: normalizeExamples(w?.examples),
       ...(w?.color ? { color: str(w.color) } : {}),
     };
   }
@@ -106,6 +109,8 @@ function compactWord(w) {
   if (w.meaning) o.meaning = w.meaning;
   if (w.tags?.length) o.tags = w.tags;
   if (w.notes) o.notes = w.notes;
+  const examples = normalizeExamples(w.examples); // field order matches tools/kanjinexus (Go)
+  if (examples.length) o.examples = examples;
   if (w.color && w.color !== DEFAULT_COLORS.word) o.color = w.color;
   return o;
 }

@@ -676,3 +676,5 @@ body {
 .restart-btn:hover { color: var(--text-main); }
 .restart-btn .icon { width: 12px; height: 12px; }
 .restart-btn[hidden] { display: none; }
+
+.answer-examples { margin: 4px 0 2px; text-align: left; }

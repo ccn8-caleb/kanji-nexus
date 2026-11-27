@@ -13,6 +13,7 @@ import { t, tr, onPrefsChange, applyStaticText } from '../core/prefs.js';
 import { isTyping, isCompact, onCompactChange } from '../core/ui.js';
 import { initPage, navigate, openInMap, DRILL_SESSION_KEY } from '../core/hub.js';
 import { buildGraph } from '../core/graph.js';
+import { examplesHtml } from '../core/examples.js';
 
 const $ = (id) => document.getElementById(id);
 const { store } = await initPage('drill');
@@ -284,6 +285,7 @@ function renderBack(card) {
         ${card.meaning && state.direction === 'kanji-to-reading' ? `<div class="answer-meaning">${escapeHtml(card.meaning)}</div>` : ''}
         ${card.notes && state.direction === 'kanji-to-reading' ? `<div class="answer-note">${escapeHtml(card.notes)}</div>` : ''}
       </div>
+      ${card.examples?.length ? `<div class="answer-examples">${examplesHtml(card.examples, card.label, { limit: 2 })}</div>` : ''}
       <div class="context-grid">${boxes.join('')}</div>
     </div>`;
 }
