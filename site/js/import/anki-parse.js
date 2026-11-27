@@ -8,6 +8,7 @@
 
 import { addWord, addKanji } from '../core/ops.js';
 import { toHiragana, toKatakana, extractKanji, labelOf } from '../core/util.js';
+import { addExample, wordsInSentence, looksLikeSentence } from '../core/examples.js';
 
 // ---------------------------------------------------------------------------
 // Field cleanup
@@ -37,7 +38,15 @@ export function parseFurigana(text) {
   const s = String(text || '');
   return {
     base: s.replace(FURIGANA, '$1').replace(/\s+/g, ''),
-    reading: s.replace(FURIGANA, (_, base, r) => r.split(/[;；]/)[0]).replace(/\s+/g, ''),
+    // Without a space before it, the bracket's base can swallow kana in front of the
+    // kanji (は学生[がくせい]): keep that kana unless the reading itself starts with it.
+    reading: s
+      .replace(FURIGANA, (_, base, r) => {
+        r = r.split(/[;；]/)[0];
+        const lead = base.match(/^[^\p{Script=Han}々〆ヶ]*/u)[0];
+        return lead && !toHiragana(r).startsWith(toHiragana(lead)) ? lead + r : r;
+      })
+      .replace(/\s+/g, ''),
   };
 }
 
@@ -169,7 +178,8 @@ function fieldStats(notes, index) {
     s.len += v.length;
     if (hasFurigana(v)) s.furigana++;
     if (/\p{Script=Han}/u.test(v)) s.kanji++;
-    if (JAPANESE_WORD.test(v) && !/\p{Script=Han}/u.test(v)) s.kanaOnly++;
+    const bare = v.replace(/[。、！？!?「」『』\s]/g, ''); // sentence readings count as kana too
+    if (bare && JAPANESE_WORD.test(bare) && !/\p{Script=Han}/u.test(bare)) s.kanaOnly++;
     if (/^[\x20-\x7e‘-”]+$/.test(v) && /[a-z]/i.test(v)) s.latin++;
     if ([...v].length === 1 && /\p{Script=Han}/u.test(v)) s.single++;
   }
@@ -209,7 +219,7 @@ export function guessMapping(noteType, notes) {
   };
   const take = (i) => (i >= 0 && used.add(i), i);
 
-  const m = { mode: 'word', word: -1, reading: -1, furigana: -1, meaning: -1, on: -1, kun: -1 };
+  const m = { mode: 'word', word: -1, reading: -1, furigana: -1, meaning: -1, on: -1, kun: -1, sentence: -1, sentenceReading: -1, sentenceMeaning: -1 };
   // exact word name > exact kanji name > word-ish name
   m.word = take(byName('word', NAME_RULES.word.slice(0, 1)));
   if (m.word < 0) m.word = take(byName('kanji'));
@@ -229,6 +239,24 @@ export function guessMapping(noteType, notes) {
   if (m.reading < 0 && m.mode === 'word') m.reading = take(best((s) => s.kanaOnly + s.furigana, 0.5));
   m.meaning = take(byName('meaning'));
   if (m.meaning < 0) m.meaning = take(best((s) => (s.avgLen < 200 ? s.latin : 0), 0.5));
+
+  // Example sentence fields (Kaishi: Sentence / Sentence Furigana / Sentence Meaning;
+  // Core: Expression / Sentence-Kana / Sentence-English).
+  if (m.mode === 'word') {
+    const find = (rules, not) => {
+      for (const rule of rules) {
+        const i = names.findIndex((n, j) => !used.has(j) && rule.test(n) && !not.test(n) && stats[j].filled > 0);
+        if (i >= 0) return i;
+      }
+      return -1;
+    };
+    const MEDIA = /audio|sound|image|picture|pitch/;
+    m.sentence = take(find([/^(sentence|example|examplesentence|expression|例文)$/, /sentence|example|例文/], /furigana|reading|kana|meaning|english|translation|英訳|audio|sound|image|picture|pitch/));
+    if (m.sentence >= 0) {
+      m.sentenceReading = take(find([/(sentence|example|例文).*(furigana|ふりがな)/, /(sentence|example|例文).*(reading|kana|読み)/, /^reading$/], MEDIA));
+      m.sentenceMeaning = take(find([/(sentence|example|例文).*(meaning|english|translation|英訳)/, /^(english|translation)$/], MEDIA));
+    }
+  }
   return m;
 }
 
@@ -255,8 +283,19 @@ export function noteToEntry(note, m) {
     return { kind: 'kanji', ch, on: splitList(get(m.on)).map((x) => toKatakana(onlyKana(x))).filter(Boolean), kun: splitList(get(m.kun)).map((x) => toHiragana(x.replace(/[^\p{Script=Hiragana}\p{Script=Katakana}ー.\-]/gu, ''))).filter(Boolean), meaning };
   }
 
+  // A sentence in the word field (a sentence card): it becomes an example of the words
+  // it contains, never a word of its own.
+  const whole = stripHtml(get(m.word)).replace(/\s+/g, '');
+  const wholeBase = hasFurigana(whole) ? parseFurigana(whole).base : whole;
+  if (/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(wholeBase) && looksLikeSentence(wholeBase, meaning)) {
+    const readingText = stripHtml(get(m.reading)).replace(/\s+/g, '');
+    const reading = readingFromMain || (hasFurigana(readingText) ? parseFurigana(readingText).reading : onlyKana(readingText) ? readingText : '');
+    return { kind: 'sentence', ja: wholeBase, reading, en: meaning };
+  }
+
   if (!main || [...main].length > 16 || !JAPANESE_WORD.test(main)) return null;
-  if (!extractKanji(main).length) return { kind: 'word', label: main, reading: main, meaning }; // kana word
+  const example = sentenceOf(note, m);
+  if (!extractKanji(main).length) return { kind: 'word', label: main, reading: main, meaning, ...(example ? { example } : {}) }; // kana word
 
   // Reading candidates, best source first; only one that fits the spelling is used
   // (none fits → left empty, for the dictionary to fill).
@@ -269,7 +308,22 @@ export function noteToEntry(note, m) {
 
   // One kanji read in katakana (借 シャク) is a kanji card, not a word: its on'yomi.
   if ([...main].length === 1 && reading && /^[ァ-ヺー]+$/.test(reading)) return { kind: 'kanji', ch: main, on: [reading], kun: [], meaning };
-  return { kind: 'word', label: main, reading, meaning };
+  return { kind: 'word', label: main, reading, meaning, ...(example ? { example } : {}) };
+}
+
+// The note's example sentence (sentence fields), or null.
+function sentenceOf(note, m) {
+  if (m.sentence < 0) return null;
+  const get = (i) => (i >= 0 ? note.flds[i] ?? '' : '');
+  const oneLine = (v) => stripHtml(v).replace(/\n+/g, ' ').trim();
+  let ja = oneLine(get(m.sentence));
+  if (hasFurigana(ja)) ja = parseFurigana(ja).base;
+  ja = ja.replace(/\s+/g, '');
+  if (!ja || !/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(ja)) return null;
+  const r = oneLine(get(m.sentenceReading));
+  const reading = hasFurigana(r) ? parseFurigana(r).reading : r.replace(/\s+/g, '');
+  const en = oneLine(get(m.sentenceMeaning)).slice(0, 300);
+  return { ja, ...(reading && reading !== ja ? { reading } : {}), ...(en ? { en } : {}) };
 }
 
 // ---------------------------------------------------------------------------
@@ -299,7 +353,8 @@ export { moreAdvanced } from '../core/srs.js';
 // same spelling with another reading = a homograph keyed "label#reading".
 // ---------------------------------------------------------------------------
 export function applyEntries(doc, entries, { linkDerivatives = true } = {}) {
-  const stats = { added: 0, updated: 0, kanjiAdded: 0, homographs: 0 };
+  const stats = { added: 0, updated: 0, kanjiAdded: 0, homographs: 0, examples: 0, sentences: 0, sentencesUnmatched: 0 };
+  const sentences = [];
   let kanjiEntriesAdded = 0;
   const ids = [];
   const byLabel = new Map();
@@ -311,7 +366,8 @@ export function applyEntries(doc, entries, { linkDerivatives = true } = {}) {
   const kanjiBefore = Object.keys(doc.kanji).length;
   const created = new Set(); // words made by this import: a second note with the same word adds its sense
   for (const e of entries) {
-    if (!e) {
+    if (!e || e.kind === 'sentence') {
+      if (e) sentences.push(e);
       ids.push(null);
       continue;
     }
@@ -339,6 +395,7 @@ export function applyEntries(doc, entries, { linkDerivatives = true } = {}) {
       if (!w.meaning && e.meaning) w.meaning = e.meaning;
       else if (created.has(match) && e.meaning && !w.meaning.split('; ').includes(e.meaning)) w.meaning = `${w.meaning}; ${e.meaning}`;
       if (!w.tags.length && e.tags?.length) w.tags = e.tags;
+      if (e.example && addExample(doc, match, e.example)) stats.examples++;
       stats.updated++;
       ids.push(`w:${match}`);
       continue;
@@ -348,9 +405,17 @@ export function applyEntries(doc, entries, { linkDerivatives = true } = {}) {
     addWord(doc, key, { reading: e.reading, meaning: e.meaning, tags: e.tags || [] }, { createKanji: true, linkDerivatives });
     byLabel.set(e.label, [...keys, key]);
     created.add(key);
+    if (e.example && addExample(doc, key, e.example)) stats.examples++;
     stats.added++;
     ids.push(`w:${key}`);
   }
   stats.kanjiAdded = Object.keys(doc.kanji).length - kanjiBefore - kanjiEntriesAdded;
+  // Sentence notes: an example on each word they contain (once all words exist).
+  for (const sen of sentences) {
+    const keys = wordsInSentence(doc, sen.ja);
+    if (!keys.length) stats.sentencesUnmatched++;
+    else stats.sentences++;
+    for (const key of keys) if (addExample(doc, key, { ja: sen.ja, reading: sen.reading, en: sen.en })) stats.examples++;
+  }
   return { stats, ids };
 }

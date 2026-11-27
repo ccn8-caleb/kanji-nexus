@@ -168,13 +168,15 @@ function mapView() {
   const src = s.source;
   const notes = selectedNotes();
   const entries = entriesFor(notes);
-  const usable = entries.filter(Boolean).length;
+  const usable = entries.filter((e) => e && e.kind !== 'sentence').length;
+  const sentenceNotes = entries.filter((e) => e?.kind === 'sentence').length;
+  const withExample = entries.filter((e) => e?.example).length;
   const reviewed = reviewedCount(notes);
   const m = s.mapping;
   const kanjiMode = m.mode === 'kanji';
   const preview = entries
     .map((e, i) => [e, notes[i]])
-    .filter(([e]) => e)
+    .filter(([e]) => e && e.kind !== 'sentence')
     .slice(0, 6);
   const fmt = { 'collection.anki21b': 'Anki 2.1.50+', 'collection.anki21': 'Anki 2.1', 'collection.anki2': 'Anki 2.0', text: t('テキスト', 'text') }[src.format] || src.format;
   const current = store.currentMap?.name || '';
@@ -191,6 +193,10 @@ function mapView() {
       ${kanjiMode ? fieldSelect('on', t('音読み', 'On reading')) + fieldSelect('kun', t('訓読み', 'Kun reading')) : fieldSelect('reading', t('読み', 'Reading')) + fieldSelect('furigana', t('ふりがな', 'Furigana'))}
       ${fieldSelect('meaning', t('意味', 'Meaning'))}
     </div>
+    ${kanjiMode ? '' : `<div class="anki-grid">
+      ${fieldSelect('sentence', t('例文', 'Example sentence'))}
+      ${s.mapping.sentence >= 0 ? fieldSelect('sentenceReading', t('例文の読み', 'Sentence reading')) + fieldSelect('sentenceMeaning', t('例文の訳', 'Sentence translation')) : ''}
+    </div>`}
     <div class="anki-preview-wrap"><table class="anki-preview">
       <thead><tr><th>${kanjiMode ? t('漢字', 'Kanji') : t('語', 'Word')}</th><th>${kanjiMode ? t('音・訓', 'On · Kun') : t('読み', 'Reading')}</th><th>${t('意味', 'Meaning')}</th>${src.format === 'text' ? '' : `<th>${t('進捗', 'Progress')}</th>`}</tr></thead>
       <tbody>${preview
@@ -198,10 +204,16 @@ function mapView() {
           const rec = schedToSrs(src.sched[n.id], src.crt);
           const prog = !rec ? t('新規', 'new') : rec.interval ? t(`${rec.interval}日`, `${rec.interval}d`) : t('学習中', 'learning');
           const reading = e.kind === 'kanji' ? [e.on.join('・'), e.kun.join('・')].filter(Boolean).join(' / ') : e.reading;
-          return `<tr><td class="jp">${escapeHtml(e.kind === 'kanji' ? e.ch : e.label)}</td><td class="jp">${escapeHtml(reading) || '<span class="muted">—</span>'}</td><td>${escapeHtml(e.meaning) || '<span class="muted">—</span>'}</td>${src.format === 'text' ? '' : `<td class="muted">${prog}</td>`}</tr>`;
+          return `<tr><td class="jp">${escapeHtml(e.kind === 'kanji' ? e.ch : e.label)}</td><td class="jp">${escapeHtml(reading) || '<span class="muted">—</span>'}</td><td>${escapeHtml(e.meaning) || '<span class="muted">—</span>'}${e.example ? `<div class="anki-example" lang="ja">${escapeHtml(e.example.ja)}</div>` : ''}</td>${src.format === 'text' ? '' : `<td class="muted">${prog}</td>`}</tr>`;
         })
         .join('')}</tbody></table></div>
-    <p class="field-hint">${t(`${notes.length} ノート → ${usable} 件を取り込み${notes.length - usable ? `（${notes.length - usable} 件は日本語の${kanjiMode ? '漢字' : '語'}がないため除外）` : ''}`, `${notes.length} notes → ${usable} to import${notes.length - usable ? ` (${notes.length - usable} skipped: no Japanese ${kanjiMode ? 'kanji' : 'word'})` : ''}`)}</p>
+    <p class="field-hint">${(() => {
+      const skipped = notes.length - usable - sentenceNotes;
+      return t(
+        `${notes.length} ノート → ${usable} 件を取り込み${withExample ? `（例文つき ${withExample}）` : ''}${sentenceNotes ? `・例文だけのノート ${sentenceNotes} 件は、含まれる語の例文に` : ''}${skipped ? `・${skipped} 件は日本語の${kanjiMode ? '漢字' : '語'}がないため除外` : ''}`,
+        `${notes.length} notes → ${usable} to import${withExample ? ` (${withExample} with an example)` : ''}${sentenceNotes ? ` · ${sentenceNotes} sentence-only notes become examples of the words they contain` : ''}${skipped ? ` · ${skipped} skipped: no Japanese ${kanjiMode ? 'kanji' : 'word'}` : ''}`
+      );
+    })()}</p>
 
     <div class="anki-options">
       <label class="anki-check"><input type="radio" name="anki-target" value="new"${s.target === 'new' ? ' checked' : ''}> ${t('新しいマップ', 'New map')}
@@ -307,11 +319,11 @@ async function runImport() {
 
     s = fresh();
     closeModal(ID);
-    const { added, updated, homographs } = result.stats;
+    const { added, updated, homographs, examples, sentencesUnmatched } = result.stats;
     toast(
       t(
-        `${added} 件を追加${updated ? `・${updated} 件を更新` : ''}${homographs ? `（同表記異読 ${homographs}）` : ''}${carried ? `・進捗 ${carried} 件` : ''}`,
-        `Added ${added}${updated ? `, updated ${updated}` : ''}${homographs ? ` (${homographs} homographs)` : ''}${carried ? ` · progress for ${carried}` : ''}`
+        `${added} 件を追加${updated ? `・${updated} 件を更新` : ''}${homographs ? `（同表記異読 ${homographs}）` : ''}${examples ? `・例文 ${examples}` : ''}${carried ? `・進捗 ${carried} 件` : ''}${sentencesUnmatched ? `（該当する語のない例文 ${sentencesUnmatched} 件は除外）` : ''}`,
+        `Added ${added}${updated ? `, updated ${updated}` : ''}${homographs ? ` (${homographs} homographs)` : ''}${examples ? ` · ${examples} examples` : ''}${carried ? ` · progress for ${carried}` : ''}${sentencesUnmatched ? ` (${sentencesUnmatched} sentences matched no word)` : ''}`
       )
     );
   } catch (err) {

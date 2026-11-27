@@ -19,6 +19,8 @@ import { buildGraph } from './graph.js';
 import { remapSrs } from './srs.js';
 import { db, requestPersistence } from './db.js';
 
+const JOURNAL_KEY = 'kanji_nexus_unsaved'; // see persistence below
+
 const HISTORY_LIMIT = 50;
 const WORKSPACE = 'workspace';
 
@@ -77,11 +79,18 @@ function createStore() {
   }
 
   // ---- persistence (coalesced: many edits in one tick → one write) ----
+  // IndexedDB writes are asynchronous: one still pending when the page goes away (an
+  // edit, then straight to another page) can be dropped. So on pagehide an unsaved doc
+  // is also written synchronously to localStorage (JOURNAL_KEY); the next load replays
+  // it if it is newer than what IndexedDB has, then clears it.
   let writeTimer = null;
   let writing = Promise.resolve();
+  let version = 0; // bumped by every change
+  let savedVersion = 0; // last version IndexedDB has confirmed
   function persist() {
     const meta = metas.get(ws.currentId);
     if (meta) Object.assign(meta, counts(doc), { updatedAt: Date.now() });
+    version++;
     clearTimeout(writeTimer);
     writeTimer = setTimeout(flush, 0);
   }
@@ -91,14 +100,47 @@ function createStore() {
     const meta = metas.get(ws.currentId);
     if (!meta) return writing;
     const record = { ...meta, doc: structuredClone(doc) };
+    const v = version;
     writing = writing
       .then(() => db.putMap(record))
+      .then(() => {
+        savedVersion = Math.max(savedVersion, v);
+        if (savedVersion === version) clearJournal();
+      })
       .then(() => saveWorkspace({ broadcast: false })) // keep list counts / dates current
       .then(() => channel?.postMessage({ type: 'map', id: record.id, at: record.updatedAt }))
       .catch((err) => console.warn('[store] could not save', err));
     return writing;
   }
-  addEventListener('pagehide', flush);
+  addEventListener('pagehide', () => {
+    if (version !== savedVersion) {
+      const meta = metas.get(ws.currentId);
+      try {
+        if (meta) localStorage.setItem(JOURNAL_KEY, JSON.stringify({ id: meta.id, updatedAt: meta.updatedAt, doc }));
+      } catch (_) {} // too big for localStorage: the IndexedDB write below is all we have
+    }
+    flush();
+  });
+  function clearJournal() {
+    try {
+      if (localStorage.getItem(JOURNAL_KEY)) localStorage.removeItem(JOURNAL_KEY);
+    } catch (_) {}
+  }
+  // Replays an unsaved doc left by a page that closed mid-write (see above).
+  async function replayJournal() {
+    let j = null;
+    try {
+      j = JSON.parse(localStorage.getItem(JOURNAL_KEY) || 'null');
+    } catch (_) {}
+    if (!j?.id || !metas.has(j.id)) return clearJournal();
+    const rec = await db.getMap(j.id);
+    if (!rec || (rec.updatedAt || 0) < j.updatedAt) {
+      const meta = Object.assign(metas.get(j.id), counts(normalize(j.doc)), { updatedAt: j.updatedAt });
+      await db.putMap({ ...meta, doc: normalize(j.doc) });
+      await saveWorkspace({ broadcast: false });
+    }
+    clearJournal();
+  }
 
   async function saveWorkspace({ broadcast = true } = {}) {
     await db.putMeta(WORKSPACE, { ...ws, maps: [...metas.values()] });
@@ -211,7 +253,7 @@ function createStore() {
       if (!(await loadWorkspace())) {
         source = await migrateFirstRun();
         await saveWorkspace();
-      }
+      } else await replayJournal();
       await openCurrent();
       return source;
     },

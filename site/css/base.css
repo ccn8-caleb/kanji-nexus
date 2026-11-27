@@ -1222,3 +1222,28 @@ kbd,
 .return-to-drill .icon { width: 16px; height: 16px; }
 .return-to-drill .return-progress { font-weight: 600; opacity: 0.8; font-variant-numeric: tabular-nums; }
 .return-to-drill:hover { filter: brightness(1.08); }
+
+/* Example sentences (core/examples.js): inspector, drill answer */
+.example-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.example { padding: 8px 10px; border-left: 3px solid var(--accent-secondary); background: var(--bg-elevated); border-radius: 0 8px 8px 0; }
+.example-ja { font-size: 15px; line-height: 1.6; color: var(--text-main); }
+.example-ja mark { background: none; color: var(--accent-secondary); font-weight: 800; }
+.example-reading { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.example-en { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+.example-edit-list { display: flex; flex-direction: column; gap: 10px; }
+.example-edit { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--border-color); border-radius: 10px; }
+.example-edit-row { display: flex; gap: 6px; align-items: center; }
+.example-edit-row .field-input { flex: 1; }
+.anki-example { font-size: 11px; color: var(--text-muted); margin-top: 2px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Clean-up dialog (js/cleanup/ui.js) */
+.cleanup-group { border: 1px solid var(--border-color); border-radius: 10px; padding: 8px 12px; }
+.cleanup-group summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; }
+.cleanup-group summary::-webkit-details-marker { display: none; }
+.cleanup-group .panel-note { margin: 6px 0; }
+.cleanup-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow-y: auto; font-size: 13px; }
+.cleanup-list .anki-check { align-items: flex-start; flex-wrap: nowrap; }
+.cleanup-list input[type='checkbox'] { margin-top: 2px; flex: none; }
+.cleanup-row { display: inline; line-height: 1.6; }
+.cleanup-row .field-select.compact { max-width: 100%; font-size: 12px; padding: 3px 6px; }
+.cleanup-chip { display: inline-block; padding: 0 7px; margin: 0 2px; border-radius: 999px; background: var(--bg-elevated); font-weight: 700; }

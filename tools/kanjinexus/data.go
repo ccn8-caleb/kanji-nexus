@@ -35,11 +35,19 @@ type Kanji struct {
 }
 
 type Word struct {
-	Reading string   `json:"reading"`
-	Meaning string   `json:"meaning,omitempty"`
-	Tags    []string `json:"tags,omitempty"`
-	Notes   string   `json:"notes,omitempty"`
-	Color   string   `json:"color,omitempty"`
+	Reading  string    `json:"reading"`
+	Meaning  string    `json:"meaning,omitempty"`
+	Tags     []string  `json:"tags,omitempty"`
+	Notes    string    `json:"notes,omitempty"`
+	Examples []Example `json:"examples,omitempty"`
+	Color    string    `json:"color,omitempty"`
+}
+
+// An example sentence: Japanese, its reading in kana, and a translation.
+type Example struct {
+	Ja      string `json:"ja"`
+	Reading string `json:"reading,omitempty"`
+	En      string `json:"en,omitempty"`
 }
 
 // Layout positions are [x, y] or [x, y, 1] — the third value marks a pinned node.
