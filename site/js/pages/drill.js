@@ -1,13 +1,17 @@
 // SRS Drill page: SM-2 flashcards over every kanji and word in the shared graph.
 // Progress lives in its own storage key (core/srs.js); vocabulary is never modified here.
+//
+// The session (queue, position, filters) is saved after every step, so leaving the
+// page — "View in map", another tab, the app being closed — never loses it. It lasts
+// until it is finished, restarted, or the filters change.
 
 import { icon } from '../core/icons.js';
 import { GRAMMAR_TAGS, LINK_TYPES, dictionaryLinks } from '../core/constants.js';
 import { escapeHtml, isKanji, joinReadings } from '../core/util.js';
-import { loadSrs, saveSrs, freshRecord, nextSm2 } from '../core/srs.js';
+import { loadSrs, saveSrs, resetSrs, onSrsChange, freshRecord, nextSm2 } from '../core/srs.js';
 import { t, tr, onPrefsChange, applyStaticText } from '../core/prefs.js';
 import { isTyping, isCompact, onCompactChange } from '../core/ui.js';
-import { initPage, navigate, openInMap } from '../core/hub.js';
+import { initPage, navigate, openInMap, DRILL_SESSION_KEY } from '../core/hub.js';
 import { buildGraph } from '../core/graph.js';
 
 const $ = (id) => document.getElementById(id);
@@ -24,6 +28,7 @@ const state = {
   practiceAll: false,
   queue: [],
   done: 0,
+  reviewed: new Set(), // rated in this session (not re-added when the deck changes)
   flipped: false,
 };
 
@@ -63,17 +68,21 @@ function allCards() {
   return cards;
 }
 
+function eligible(card, now = Date.now()) {
+  if (state.deckType !== 'all' && card.kind !== state.deckType) return false;
+  if (state.tagFilter !== 'all' && !card.tags.includes(state.tagFilter)) return false;
+  if (state.direction === 'reading-to-kanji' && !card.reading) return false;
+  const rec = record(card.id);
+  return state.practiceAll || rec.reps === 0 || rec.due <= now;
+}
+
 function rebuildQueue() {
   const now = Date.now();
   const due = [];
   const fresh = [];
   for (const card of allCards()) {
-    if (state.deckType !== 'all' && card.kind !== state.deckType) continue;
-    if (state.tagFilter !== 'all' && !card.tags.includes(state.tagFilter)) continue;
-    if (state.direction === 'reading-to-kanji' && !card.reading) continue;
-    const rec = record(card.id);
-    if (!state.practiceAll && rec.reps > 0 && rec.due > now) continue;
-    (rec.reps > 0 ? due : fresh).push(card);
+    if (!eligible(card, now)) continue;
+    (record(card.id).reps > 0 ? due : fresh).push(card);
   }
   due.sort((a, b) => record(a.id).due - record(b.id).due);
   for (let i = fresh.length - 1; i > 0; i--) {
@@ -82,7 +91,67 @@ function rebuildQueue() {
   }
   state.queue = [...due, ...fresh];
   state.done = 0;
+  state.reviewed = new Set();
   state.flipped = false;
+}
+
+// ---------------------------------------------------------------------------
+// Saved session
+// ---------------------------------------------------------------------------
+const FILTERS = ['scope', 'deckType', 'direction', 'tagFilter', 'practiceAll'];
+
+function saveSession() {
+  try {
+    if (!state.queue.length) return localStorage.removeItem(DRILL_SESSION_KEY); // finished
+    const filters = Object.fromEntries(FILTERS.map((k) => [k, state[k]]));
+    localStorage.setItem(
+      DRILL_SESSION_KEY,
+      JSON.stringify({ v: 1, mapId: store.currentMap?.id, ...filters, queue: state.queue.map((c) => c.id), done: state.done, reviewed: [...state.reviewed], flipped: state.flipped })
+    );
+  } catch (_) {}
+}
+
+function loadSession() {
+  try {
+    const s = JSON.parse(localStorage.getItem(DRILL_SESSION_KEY) || 'null');
+    if (s?.v !== 1 || !Array.isArray(s.queue)) return null;
+    // "This map" sessions belong to the map they were started on.
+    if (s.scope !== 'all' && s.mapId !== store.currentMap?.id) return null;
+    return s;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Keep the session in step with the vocabulary: cards whose word/kanji is gone drop
+// out, card details are refreshed, and newly eligible cards join at the end.
+function reconcile(ids, { flipped = state.flipped } = {}) {
+  const cards = allCards();
+  const byId = new Map(cards.map((c) => [c.id, c]));
+  const firstBefore = ids[0];
+  state.queue = ids.map((id) => byId.get(id)).filter(Boolean);
+  const queued = new Set(state.queue.map((c) => c.id));
+  const now = Date.now();
+  for (const c of cards) if (!queued.has(c.id) && !state.reviewed.has(c.id) && eligible(c, now)) state.queue.push(c);
+  state.flipped = flipped && state.queue[0]?.id === firstBefore;
+}
+
+async function resume(saved) {
+  for (const k of FILTERS) if (k in saved) state[k] = saved[k];
+  state.graphs = await loadGraphs();
+  state.done = saved.done || 0;
+  state.reviewed = new Set(saved.reviewed || []);
+  reconcile(saved.queue, { flipped: Boolean(saved.flipped) });
+  saveSession();
+  renderAll();
+}
+
+// Vocabulary changed (an edit, an import, a sync): update the session, don't restart it.
+async function refreshDeck() {
+  state.graphs = await loadGraphs();
+  reconcile(state.queue.map((c) => c.id));
+  saveSession();
+  renderAll();
 }
 
 // ---------------------------------------------------------------------------
@@ -135,6 +204,7 @@ function renderControls() {
   const total = state.done + state.queue.length;
   $('session-progress-fill').style.width = `${total ? Math.round((state.done / total) * 100) : 100}%`;
   $('session-progress-text').textContent = t(`${state.done} / ${total} 完了`, `${state.done} / ${total} done`);
+  $('btn-restart-session').hidden = !state.done;
 }
 
 const intervalLabel = (days) => (days <= 0 ? t('すぐ再出題', '< 1 min') : days === 1 ? t('1日後', '1 day') : t(`${days}日後`, `${days} days`));
@@ -288,6 +358,7 @@ function renderAll() {
 function flip() {
   if (state.flipped || !state.queue.length) return;
   state.flipped = true;
+  saveSession();
   renderCard();
 }
 
@@ -295,11 +366,13 @@ function rate(quality) {
   const card = state.queue.shift();
   if (!card) return;
   state.srs[card.id] = nextSm2(record(card.id), quality);
-  saveSrs(state.srs);
+  saveSrs(state.srs, { source: 'drill' });
+  state.reviewed.add(card.id);
   // "Again" comes back two cards later in this session.
   if (quality === 1) state.queue.splice(Math.min(2, state.queue.length), 0, card);
   else state.done++;
   state.flipped = false;
+  saveSession();
   renderAll();
 }
 
@@ -307,12 +380,13 @@ async function refilter(patch) {
   Object.assign(state, patch);
   state.graphs = await loadGraphs();
   rebuildQueue();
+  saveSession();
   renderAll();
 }
 
 document.querySelector('main').addEventListener('click', (e) => {
   const jump = e.target.closest('[data-jump-id]');
-  if (jump) return openInMap(jump.dataset.jumpId);
+  if (jump) return openInMap(jump.dataset.jumpId, { from: 'drill' });
   const r = e.target.closest('[data-rate]');
   if (r) return rate(Number(r.dataset.rate));
 
@@ -333,12 +407,13 @@ document.querySelector('main').addEventListener('click', (e) => {
     return refilter({ scope });
   }
   if (e.target.closest('#btn-toggle-cram')) return refilter({ practiceAll: !state.practiceAll });
+  if (e.target.closest('#btn-restart-session')) return refilter({});
 });
 
 $('btn-reset-srs').addEventListener('click', () => {
   if (!confirm(t('復習ドリルの学習履歴をすべてリセットしますか？', 'Reset all spaced-repetition review progress?'))) return;
+  resetSrs();
   state.srs = {};
-  saveSrs(state.srs);
   refilter({});
 });
 
@@ -366,6 +441,19 @@ controls.addEventListener('click', (e) => {
   if (isCompact() && e.target.closest('[data-deck-type], [data-dir]')) controls.open = false;
 });
 
-store.subscribe(() => refilter({}));
+store.subscribe(({ reason }) => {
+  // Another map opened (switcher, another tab): a "this map" session belongs to the old one.
+  if (reason === 'switch' && state.scope !== 'all') return refilter({});
+  refreshDeck();
+});
+// Progress changed elsewhere (sync, another tab, an import): new numbers, same session.
+onSrsChange(({ source }) => {
+  if (source === 'drill') return;
+  state.srs = loadSrs();
+  renderStatus();
+  if (!state.flipped) renderCard();
+});
 onPrefsChange(renderAll);
-refilter({});
+const saved = loadSession();
+if (saved) await resume(saved);
+else await refilter({});

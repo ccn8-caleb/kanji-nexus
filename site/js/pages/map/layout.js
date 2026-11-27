@@ -368,32 +368,80 @@ export function tidy(doc) {
     laidOut.push({ ids, nodes, box, pinned });
   }
 
-  // Pinned clusters keep their coordinates; packing starts below them.
-  const fixed = laidOut.filter((c) => c.pinned);
-  const free = laidOut.filter((c) => !c.pinned).sort((a, b) => b.nodes.length - a.nodes.length || b.box.maxX - b.box.minX - (a.box.maxX - a.box.minX));
-  const width = (c) => c.box.maxX - c.box.minX;
-  const height = (c) => c.box.maxY - c.box.minY;
-  const area = free.reduce((a, c) => a + (width(c) + CLUSTER_GAP) * (height(c) + CLUSTER_GAP), 0);
-  const rowWidth = Math.max(free.length ? width(free[0]) : 0, Math.sqrt(area) * 1.5);
-  let x = 0;
-  let y = fixed.length ? Math.max(...fixed.map((c) => c.box.maxY)) + CLUSTER_GAP * 2 : 0;
-  const originX = fixed.length ? Math.min(...fixed.map((c) => c.box.minX)) : 0;
-  let rowHeight = 0;
-  for (const c of free) {
-    if (x > 0 && x + width(c) > rowWidth) {
-      x = 0;
-      y += rowHeight + CLUSTER_GAP;
-      rowHeight = 0;
-    }
-    const dx = originX + x - c.box.minX;
-    const dy = y - c.box.minY;
-    for (const n of c.nodes) (n.x += dx), (n.y += dy);
-    x += width(c) + CLUSTER_GAP;
-    rowHeight = Math.max(rowHeight, height(c));
-  }
-
+  packClusters(laidOut);
   for (const c of laidOut) for (const n of c.nodes) if (!isPinned(doc, n.id)) setPos(doc, n.id, n.x, n.y);
   return from;
+}
+
+// ---------------------------------------------------------------------------
+// packClusters: arrange laid-out clusters around a centre, biggest first, each at the
+// nearest free spot on an outward spiral. Small clusters settle into the space around
+// the big ones instead of trailing off in rows, so the whole map stays round and
+// central. Each cluster is treated as a circle; the gap between two grows with their
+// size (small clusters sit close, big ones get room to breathe), up to CLUSTER_GAP.
+// Pinned clusters stay where they are and the others pack around them.
+// ---------------------------------------------------------------------------
+const ASPECT = 1.35; // wider than tall, like a screen
+
+function packClusters(laidOut) {
+  const circle = (c) => {
+    const x = (c.box.minX + c.box.maxX) / 2;
+    const y = (c.box.minY + c.box.maxY) / 2;
+    let r = 0;
+    for (const n of c.nodes) r = Math.max(r, Math.hypot(n.x - x, n.y - y) + n.r);
+    return { x, y, r };
+  };
+  const placed = []; // { x, y, r }
+  // Grid of placed circles for quick overlap tests.
+  const CELL = 240;
+  const grid = new Map();
+  const cells = (x, y, r, fn) => {
+    for (let i = Math.floor((x - r) / CELL); i <= Math.floor((x + r) / CELL); i++)
+      for (let j = Math.floor((y - r) / CELL); j <= Math.floor((y + r) / CELL); j++) fn(`${i},${j}`);
+  };
+  const add = (c) => {
+    placed.push(c);
+    cells(c.x, c.y, c.r, (k) => (grid.get(k) || grid.set(k, []).get(k)).push(c));
+  };
+  const gap = (a, b) => Math.min(CLUSTER_GAP, 36 + 0.06 * (a + b));
+  const free = (x, y, r) => {
+    let ok = true;
+    cells(x, y, r + CLUSTER_GAP, (k) => {
+      if (ok) for (const o of grid.get(k) || []) if (Math.hypot(o.x - x, o.y - y) < o.r + r + gap(o.r, r)) return (ok = false);
+    });
+    return ok;
+  };
+
+  const fixed = laidOut.filter((c) => c.pinned);
+  for (const c of fixed) add(circle(c));
+  const origin = fixed.length ? { x: placed.reduce((a, c) => a + c.x, 0) / placed.length, y: placed.reduce((a, c) => a + c.y, 0) / placed.length } : { x: 0, y: 0 };
+
+  const todo = laidOut
+    .filter((c) => !c.pinned)
+    .map((c) => ({ c, ...circle(c) }))
+    .sort((a, b) => b.r - a.r);
+  // Clusters of about the same size can't fit anywhere the previous one of that size
+  // didn't: they resume the spiral where it stopped (keeps big maps fast).
+  const resumeAt = new Map(); // size bucket → theta
+  for (const item of todo) {
+    let at = null;
+    if (!placed.length) at = { x: origin.x, y: origin.y };
+    const bucket = Math.round(item.r / 8);
+    // Archimedean spiral: 28px between turns, ~20px steps along it.
+    let theta = resumeAt.get(bucket) || 0;
+    while (!at) {
+      const rad = (28 / (2 * Math.PI)) * theta;
+      const x = origin.x + Math.cos(theta) * rad * ASPECT;
+      const y = origin.y + Math.sin(theta) * rad;
+      if (free(x, y, item.r)) at = { x, y };
+      else theta += 20 / Math.max(rad, 20);
+    }
+    resumeAt.set(bucket, theta);
+    const dx = at.x - item.x;
+    const dy = at.y - item.y;
+    for (const n of item.c.nodes) (n.x += dx), (n.y += dy);
+    add({ x: at.x, y: at.y, r: item.r });
+  }
 }
 
 // ---------------------------------------------------------------------------

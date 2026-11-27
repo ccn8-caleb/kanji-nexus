@@ -5,6 +5,8 @@
 //   kanji-nexus-index.json      { version, maps: { id: { name, fileId, updatedAt } }, deleted: { id: time } }
 //   kanji-nexus-map-<id>.json   one bundle per map (only changed maps upload)
 //   kanji-nexus.json            0.6.0–0.6.2 single file: adopted as the migrated map's file
+//   kanji-nexus-srs.json        drill progress { version, resetAt, records }, merged card by
+//                               card (later review wins, core/srs.js mergeSrs) — no conflicts
 //
 // Flow
 //   Connect     click → Google popup (consent the first time) → first sync
@@ -15,11 +17,11 @@
 //   Conflicts   decided by content (see logic.js); when both sides changed the user
 //               chooses which copy wins. Pulling is undoable with Ctrl+Z on the map.
 //
-// Drill (SRS) progress is not synced yet — only the maps.
 
 import { GOOGLE_CLIENT_ID } from '../config.js';
 import { normalize, bundleText } from '../../core/schema.js';
 import { newMapId } from '../../core/store.js';
+import { loadSrs, loadSrsMeta, saveSrs, mergeSrs, onSrsChange } from '../../core/srs.js';
 import { choose } from '../../core/ui.js';
 import { onPrefsChange } from '../../core/prefs.js';
 import { cachedToken, requestToken, revoke, clearToken, loadGis, AuthError } from './auth.js';
@@ -29,14 +31,15 @@ import { decide, sha256 } from './logic.js';
 const STATE_KEY = 'kanji_nexus_gdrive';
 const AUTO_SYNC_DELAY_MS = 3000;
 
-// state: { enabled, lastSync, indexFileId, maps: { mapId: { fileId, remoteVersion, baseHash } } }
+// state: { enabled, lastSync, indexFileId, maps: { mapId: { fileId, remoteVersion, baseHash } },
+//          srs: { fileId, remoteVersion, hash } }
 // (0.6.x state { fileId, remoteVersion, baseHash } is migrated onto the migrated map.)
 function loadState(store) {
   let raw = {};
   try {
     raw = JSON.parse(localStorage.getItem(STATE_KEY) || '{}') || {};
   } catch (_) {}
-  const state = { enabled: Boolean(raw.enabled), lastSync: raw.lastSync || 0, indexFileId: raw.indexFileId || null, maps: raw.maps || {} };
+  const state = { enabled: Boolean(raw.enabled), lastSync: raw.lastSync || 0, indexFileId: raw.indexFileId || null, maps: raw.maps || {}, srs: raw.srs || null };
   if (raw.fileId && !raw.maps) {
     const legacyId = store.workspace.legacyMapId || (store.maps.length === 1 ? store.maps[0].id : null);
     if (legacyId) state.maps[legacyId] = { fileId: raw.fileId, remoteVersion: raw.remoteVersion, baseHash: raw.baseHash };
@@ -205,6 +208,46 @@ export function install(ctx) {
     return true;
   }
 
+  // Drill progress: one file, merged both ways. Canonical text so equal sets hash equal.
+  const REC_FIELDS = ['reps', 'interval', 'ease', 'due', 'lapses', 'at'];
+  const srsText = ({ records, resetAt }) =>
+    JSON.stringify({
+      version: 1,
+      resetAt: resetAt || 0,
+      records: Object.fromEntries(
+        Object.keys(records)
+          .sort()
+          .map((id) => [id, Object.fromEntries(REC_FIELDS.filter((f) => records[id][f] !== undefined).map((f) => [f, records[id][f]]))])
+      ),
+    });
+
+  async function syncSrs(token) {
+    const local = { records: loadSrs(), resetAt: loadSrsMeta().resetAt };
+    const localText = srsText(local);
+    const localHash = await sha256(localText);
+    let meta = state.srs?.fileId ? await drive.getMeta(token, state.srs.fileId) : null;
+    meta ||= await drive.findFile(token, drive.SRS_FILE);
+    if (meta && state.srs?.fileId === meta.id && String(meta.version) === state.srs.remoteVersion && localHash === state.srs.hash) return; // neither side changed
+
+    let remote = { records: {}, resetAt: 0 };
+    if (meta) {
+      const r = JSON.parse(await drive.download(token, meta.id));
+      remote = { records: r.records || {}, resetAt: r.resetAt || 0 };
+    }
+    const merged = mergeSrs(local, remote);
+    const text = srsText(merged);
+    if (text !== localText) saveSrs(merged.records, { source: 'sync', resetAt: merged.resetAt });
+    let saved = meta;
+    if (!meta) saved = await drive.create(token, text, drive.SRS_FILE);
+    else if (text !== srsText(remote)) {
+      saved = await drive.update(token, meta.id, text);
+      // Version jumped by more than our own write: another device saved at the same
+      // moment. Merge again on the next pass so neither device's reviews are lost.
+      if (Number(saved.version) > Number(meta.version) + 1) again = true;
+    }
+    state.srs = { fileId: saved.id, remoteVersion: String(saved.version), hash: await sha256(text) };
+  }
+
   // retry: a click whose cached token Google rejects gets one fresh sign-in.
   async function sync({ interactive = false, retry = true } = {}) {
     if (!state.enabled) return;
@@ -276,7 +319,10 @@ export function install(ctx) {
         for (const id of pulled) if (index.maps[id]?.name && nameOf(id) !== index.maps[id].name) await quietly(() => store.renameMap(id, index.maps[id].name));
       }
 
-      // 5. Save the index if anything changed.
+      // 5. Drill progress (shared by all maps).
+      await syncSrs(token);
+
+      // 6. Save the index if anything changed.
       if (JSON.stringify(index) !== before) {
         const text = JSON.stringify(index, null, 1);
         const saved = idxMeta ? await drive.update(token, idxMeta.id, text) : await drive.create(token, text, drive.INDEX_FILE);
@@ -312,7 +358,7 @@ export function install(ctx) {
   }
 
   function disconnectLocal() {
-    state = { enabled: false, lastSync: 0, indexFileId: null, maps: {} };
+    state = { enabled: false, lastSync: 0, indexFileId: null, maps: {}, srs: null };
     save();
     status.off();
     ctx.refreshPanel();
@@ -360,6 +406,12 @@ export function install(ctx) {
   // ---- Automatic sync ----
   store.subscribe(({ reason }) => {
     if (!state.enabled || applyingRemote || reason === 'external') return;
+    clearTimeout(timer);
+    timer = setTimeout(() => sync(), AUTO_SYNC_DELAY_MS);
+  });
+  // Drill ratings, resets and imports on this tab (other tabs sync their own).
+  onSrsChange(({ source }) => {
+    if (!state.enabled || source === 'sync' || source === 'other-tab') return;
     clearTimeout(timer);
     timer = setTimeout(() => sync(), AUTO_SYNC_DELAY_MS);
   });

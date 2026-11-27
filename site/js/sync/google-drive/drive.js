@@ -6,6 +6,7 @@ const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
 export const LEGACY_FILE = 'kanji-nexus.json'; // 0.6.0–0.6.2: the single synced map
 export const INDEX_FILE = 'kanji-nexus-index.json'; // list of maps → files
 export const mapFileName = (id) => `kanji-nexus-map-${id}.json`;
+export const SRS_FILE = 'kanji-nexus-srs.json'; // drill progress (all maps)
 const META_FIELDS = 'id,version,modifiedTime';
 
 export class TokenExpiredError extends Error {}
